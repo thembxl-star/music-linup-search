@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISRC + Lineup Lookup</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root{--bg:#0a0a0f;--sur:#111118;--sur2:#1a1a24;--bdr:#2a2a3a;--acc:#00e5a0;--acc2:#5b6aff;--warn:#ffb830;--err:#ff4d6a;--txt:#e8e8f0;--mut:#6b6b8a;--dz:#a259ff;--it:#fc3c44;--sp:#1db954;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif}
+html{font-size:130%}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh;font-size:0.85rem}
+header{background:var(--sur);border-bottom:1px solid var(--bdr);padding:13px 24px;display:flex;align-items:center;gap:11px;position:sticky;top:0;z-index:100}
+.logo{font-family:var(--mono);font-size:0.65rem;font-weight:600;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.25);padding:4px 8px;border-radius:4px}
+header h1{font-size:0.85rem;font-weight:500}
+.sep{flex:1}
+.api-badges{display:flex;gap:5px;align-items:center}
+.ab{font-family:var(--mono);font-size:0.6rem;font-weight:600;padding:3px 6px;border-radius:3px;border:1px solid var(--bdr);color:var(--mut);transition:all .3s;text-transform:uppercase;letter-spacing:.06em}
+.ab.on-mb{border-color:var(--acc);color:var(--acc);background:rgba(0,229,160,.07)}
+.ab.on-dz{border-color:var(--dz);color:var(--dz);background:rgba(162,89,255,.07)}
+.ab.on-it{border-color:var(--it);color:var(--it);background:rgba(252,60,68,.07)}
+.ab.on-lfm{border-color:var(--warn);color:var(--warn);background:rgba(255,184,48,.07)}
+.ab.on-dg{border-color:var(--acc2);color:var(--acc2);background:rgba(91,106,255,.07)}
+.ab.on-sp{border-color:var(--sp);color:var(--sp);background:rgba(29,185,84,.07)}
+.ai-flag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:0.65rem;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.ai-yes{background:rgba(255,184,48,.12);color:var(--warn);border:1px solid rgba(255,184,48,.3)}
+.ai-no{background:rgba(0,229,160,.08);color:var(--acc);border:1px solid rgba(0,229,160,.15)}
+.ai-unk{background:rgba(107,107,138,.1);color:var(--mut);border:1px solid rgba(107,107,138,.2)}
+#hStat{font-family:var(--mono);font-size:0.65rem;color:var(--mut)}
+.con{max-width:1500px;margin:0 auto;padding:20px 24px}
+/* DROP */
+.dz{border:2px dashed var(--bdr);border-radius:10px;padding:42px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--sur);position:relative;overflow:hidden}
+.dz::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(0,229,160,.04) 0%,transparent 70%);pointer-events:none}
+.dz:hover,.dz.over{border-color:var(--acc);background:rgba(0,229,160,.03)}
+.dz .dzico{font-size:1.8rem;margin-bottom:9px;opacity:.5}
+.dz h2{font-size:0.9rem;font-weight:500;margin-bottom:3px}
+.dz p{font-size:0.72rem;color:var(--mut);font-family:var(--mono)}
+.dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* CONFIG */
+.cfg{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:13px 17px;margin-top:16px}
+.cfg-ttl{font-size:0.65rem;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--mut);margin-bottom:11px}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:11px}
+.ci{display:flex;flex-direction:column;gap:4px}
+.ci label{font-family:var(--mono);font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);display:flex;align-items:center;gap:6px;cursor:pointer}
+.ci label input[type=checkbox]{accent-color:var(--acc);width:12px;height:12px}
+.ci .cd{font-size:0.72rem;color:var(--mut);padding-left:18px;line-height:1.5}
+.ci input[type=text]{background:var(--sur2);border:1px solid var(--bdr);border-radius:4px;padding:5px 8px;font-family:var(--mono);font-size:0.72rem;color:var(--txt);outline:none;transition:border-color .15s}
+.ci input[type=text]:focus{border-color:var(--acc)}
+.ci .ht{font-size:0.65rem;color:var(--mut);padding-left:18px}
+.ci .ht a{color:var(--acc2);text-decoration:none}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--bdr);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:16px}
+.stat{background:var(--sur);padding:10px 11px;text-align:center}
+.stat .v{font-family:var(--mono);font-size:1.15rem;font-weight:600;color:var(--acc);display:block;margin-bottom:2px}
+.stat .l{font-size:0.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--mut)}
+.stat.warn .v{color:var(--warn)}.stat.err .v{color:var(--err)}.stat.blue .v{color:var(--acc2)}.stat.pur .v{color:var(--dz)}
+/* CONTROLS */
+.ctrls{display:flex;gap:9px;margin-top:14px;align-items:center;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:0.72rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:8px 15px;border-radius:4px;border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btn-p{background:var(--acc);color:#000}.btn-p:hover{background:#00ffb3}.btn-p:disabled{background:#1a3a30;color:#2a5a45;cursor:not-allowed}
+.btn-s{background:var(--sur2);color:var(--txt);border:1px solid var(--bdr)}.btn-s:hover{border-color:var(--acc);color:var(--acc)}.btn-s:disabled{opacity:.3;cursor:not-allowed}
+.btn-g{background:var(--sur2);color:var(--sp);border:1px solid rgba(29,185,84,.3)}.btn-g:hover{background:rgba(29,185,84,.1)}.btn-g:disabled{opacity:.3;cursor:not-allowed}
+.pgw{flex:1;min-width:150px}
+.pgt{height:3px;background:var(--sur2);border-radius:2px;overflow:hidden;margin-bottom:3px}
+.pgf{height:100%;background:linear-gradient(90deg,var(--acc2),var(--acc));border-radius:2px;transition:width .4s;width:0%}
+.pgl{font-family:var(--mono);font-size:0.65rem;color:var(--mut)}
+/* POST-PASS DECISION PANEL */
+.decision{background:var(--sur);border:1px solid var(--sp);border-radius:8px;padding:18px 20px;margin-top:16px;display:none}
+.decision h3{font-size:0.85rem;font-weight:600;color:var(--sp);margin-bottom:6px}
+.decision p{font-size:0.78rem;color:var(--mut);margin-bottom:14px;line-height:1.6}
+.decision .dec-btns{display:flex;gap:10px;flex-wrap:wrap}
+/* LINEUP STATS */
+.lstats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bdr);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-top:16px}
+/* TABS */
+.tabs{display:flex;margin-top:20px;border-bottom:1px solid var(--bdr)}
+.tab{font-family:var(--mono);font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:8px 15px;cursor:pointer;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:5px}
+.tab:hover{color:var(--txt)}.tab.act{color:var(--acc);border-bottom-color:var(--acc)}.tab.wact{color:var(--warn);border-bottom-color:var(--warn)}
+.tab .bdg{background:var(--sur2);border-radius:10px;padding:1px 5px;font-size:0.58rem}
+/* TABLES */
+.tw{margin-top:11px;border:1px solid var(--bdr);border-radius:8px;overflow:hidden;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:0.72rem}
+thead tr{background:var(--sur2);border-bottom:1px solid var(--bdr)}
+th{font-family:var(--mono);font-size:0.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);padding:7px 10px;text-align:left;white-space:nowrap;font-weight:500}
+tbody tr{border-bottom:1px solid rgba(42,42,58,.5);transition:background .1s}
+tbody tr:hover{background:var(--sur2)}
+td{padding:6px 10px;vertical-align:middle;font-family:var(--mono);font-size:0.72rem;color:var(--txt);max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.ta{color:var(--acc);font-weight:500}td.ti{color:var(--acc2);letter-spacing:.06em}
+td.feat{color:var(--sp)}td.nfeat{color:var(--mut)}
+.bp{display:inline-block;padding:2px 6px;border-radius:10px;font-family:var(--mono);font-size:0.58rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.bp-ok{background:rgba(0,229,160,.1);color:var(--acc);border:1px solid rgba(0,229,160,.2)}
+.bp-rv{background:rgba(255,184,48,.1);color:var(--warn);border:1px solid rgba(255,184,48,.2)}
+.bp-nf{background:rgba(255,77,106,.1);color:var(--err);border:1px solid rgba(255,77,106,.2)}
+.bp-sk{background:rgba(107,107,138,.1);color:var(--mut);border:1px solid rgba(107,107,138,.2)}
+.sb{display:inline-block;font-family:var(--mono);font-size:0.58rem;padding:1px 4px;border-radius:3px}
+.sb-mb{background:rgba(0,229,160,.12);color:var(--acc);border:1px solid rgba(0,229,160,.2)}
+.sb-dz{background:rgba(162,89,255,.12);color:var(--dz);border:1px solid rgba(162,89,255,.2)}
+.sb-it{background:rgba(252,60,68,.12);color:var(--it);border:1px solid rgba(252,60,68,.2)}
+.sb-mg{background:rgba(91,106,255,.12);color:var(--acc2);border:1px solid rgba(91,106,255,.2)}
+.sb-sp{background:rgba(29,185,84,.12);color:var(--sp);border:1px solid rgba(29,185,84,.2)}
+/* REVIEW CARDS */
+.rc{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:13px 15px;margin-bottom:8px}
+.rca{font-family:var(--mono);font-size:0.72rem;color:var(--acc);font-weight:600;margin-bottom:2px}
+.rct{font-size:0.85rem;font-weight:500;margin-bottom:4px}
+.rcr{font-family:var(--mono);font-size:0.65rem;color:var(--warn);background:rgba(255,184,48,.07);border:1px solid rgba(255,184,48,.15);padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:10px}
+.clist{display:flex;flex-direction:column;gap:4px}
+.cnd{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;cursor:pointer;transition:all .15s}
+.cnd:hover{border-color:var(--acc2)}.cnd input[type=radio]{accent-color:var(--acc);flex-shrink:0}
+.ci-i{font-family:var(--mono);font-size:0.72rem;color:var(--acc2);font-weight:600;min-width:110px}
+.ci-t{font-size:0.72rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ci-m{font-family:var(--mono);font-size:0.65rem;color:var(--mut);display:flex;gap:5px;align-items:center;flex-shrink:0}
+.cnd-n{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;cursor:pointer;transition:all .15s}
+.cnd-n:hover{border-color:var(--err)}
+.ra{display:flex;gap:7px;margin-top:8px}
+.empty{text-align:center;padding:44px 20px;color:var(--mut)}
+.empty .ei{font-size:2rem;margin-bottom:9px;opacity:.4}
+.empty p{font-size:0.72rem;font-family:var(--mono)}
+/* LOG */
+.logp{margin-top:11px;background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;max-height:100px;overflow-y:auto;font-family:var(--mono);font-size:0.65rem;color:var(--mut);display:none}
+.logp.vis{display:block}
+.le{margin-bottom:2px;line-height:1.5}.le.ok{color:var(--acc)}.le.wa{color:var(--warn)}.le.er{color:var(--err)}.le.sp{color:var(--sp)}
+/* TOAST */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--sur2);border:1px solid var(--acc);color:var(--acc);font-family:var(--mono);font-size:0.72rem;padding:8px 15px;border-radius:5px;z-index:999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}.toast.warn{border-color:var(--warn);color:var(--warn)}
+.hidden{display:none!important}
+/* MANUAL SEARCH MODAL */
+.msm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.msm{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.msm-head{padding:14px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.msm-head h3{font-size:0.85rem;font-weight:600;color:var(--acc)}
+.msm-close{background:none;border:none;color:var(--mut);font-size:1.1rem;cursor:pointer;padding:2px 6px;border-radius:3px;line-height:1}
+.msm-close:hover{color:var(--txt)}
+.msm-body{padding:16px 18px;overflow-y:auto;flex:1}
+.msm-row{display:flex;gap:10px;margin-bottom:12px}
+.msm-row .ci{flex:1}
+.msm-row .ci label{font-family:var(--mono);font-size:0.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);display:block;margin-bottom:4px}
+.msm-row .ci input{width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:4px;padding:7px 10px;font-family:var(--mono);font-size:0.78rem;color:var(--txt);outline:none;transition:border-color .15s}
+.msm-row .ci input:focus{border-color:var(--acc)}
+.msm-results{margin-top:4px}
+.msm-status{font-family:var(--mono);font-size:0.65rem;color:var(--mut);margin-bottom:8px;min-height:16px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ISRC</div>
+  <h1>Metadata &amp; Lineup Lookup</h1>
+  <div class="sep"></div>
+  <div class="api-badges">
+    <span class="ab" id="bMB">MusicBrainz</span>
+    <span class="ab" id="bDZ">Deezer</span>
+    <span class="ab" id="bIT">iTunes</span>
+    <span class="ab" id="bLFM">Last.fm</span>
+    <span class="ab" id="bDG">Discogs</span>
+    <span class="ab" id="bSP">Spotify</span>
+  </div>
+  <div style="width:1px;height:17px;background:var(--bdr);margin:0 5px"></div>
+  <span id="hStat" class="ab">Ready</span>
+</header>
+
+<div class="con">
+  <!-- DROP -->
+  <div class="dz" id="dropZone">
+    <input type="file" id="fileInput" accept=".csv">
+    <div class="dzico">📂</div>
+    <h2>Drop your CSV file here</h2>
+    <p>Semicolon or comma · ARTIST &amp; TITLE columns · All original columns preserved in export</p>
+  </div>
+
+  <!-- CONFIG -->
+  <!-- STATS -->
+  <div class="stats hidden" id="statsEl">
+    <div class="stat"><span class="v" id="sTo">0</span><span class="l">Total</span></div>
+    <div class="stat"><span class="v" id="sDo">0</span><span class="l">Done</span></div>
+    <div class="stat"><span class="v" id="sMa">0</span><span class="l">Matched</span></div>
+    <div class="stat warn"><span class="v" id="sRe">0</span><span class="l">Review</span></div>
+    <div class="stat err"><span class="v" id="sNF">0</span><span class="l">Not Found</span></div>
+    <div class="stat blue"><span class="v" id="sRd">0</span><span class="l">Reviewed</span></div>
+    <div class="stat pur"><span class="v" id="sMS">0</span><span class="l">Multi-Src ★</span></div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="ctrls hidden" id="ctrlEl">
+    <button class="btn btn-p" id="btnStart">▶ Start Lookup</button>
+    <button class="btn btn-s" id="btnPause" disabled>⏸ Pause</button>
+    <button class="btn btn-s hidden" id="btnExport" disabled>↓ Export Metadata</button>
+    <button class="btn btn-g hidden" id="btnLineup" disabled>♪ Search Lineups</button>
+    <button class="btn btn-s hidden" id="btnAI" disabled style="color:var(--warn);border-color:rgba(255,184,48,.3)">⚠ AI Check</button>
+    <div class="pgw hidden" id="pgWrap">
+      <div class="pgt"><div class="pgf" id="pgF"></div></div>
+      <div class="pgl" id="pgL">0 / 0</div>
+    </div>
+  </div>
+
+  <!-- POST-PASS DECISION PANEL -->
+  <div class="decision" id="decisionPanel">
+    <h3>✓ Metadata Pass Complete</h3>
+    <p id="decisionMsg"></p>
+    <div class="dec-btns">
+      <button class="btn btn-s" id="btnExport2">↓ Export Metadata CSV</button>
+      <button class="btn btn-s" id="btnAI2" style="color:var(--warn);border-color:rgba(255,184,48,.3)">⚠ AI Check</button>
+      <button class="btn btn-g" id="btnLineup2">♪ Continue to Lineup Search</button>
+    </div>
+  </div>
+
+  <!-- LINEUP STATS -->
+  <div class="lstats hidden" id="lStatsEl">
+    <div class="stat"><span class="v" id="lTo">0</span><span class="l">Tracks Processed</span></div>
+    <div class="stat"><span class="v" id="lFo">0</span><span class="l">With Credits</span></div>
+    <div class="stat"><span class="v" id="lPe">0</span><span class="l">Performers Found</span></div>
+    <div class="stat pur"><span class="v" id="lRl">0</span><span class="l">Release-Level Fallback</span></div>
+  </div>
+
+  <div class="logp" id="logEl"></div>
+
+  <!-- TABS -->
+  <div class="tabs hidden" id="tabsEl">
+    <div class="tab act" data-tab="all">All <span class="bdg" id="tc0">0</span></div>
+    <div class="tab" data-tab="matched">Matched <span class="bdg" id="tc1">0</span></div>
+    <div class="tab wact" data-tab="review" style="--warn:#ffb830">Review <span class="bdg" id="tc2">0</span></div>
+    <div class="tab" data-tab="notfound">Not Found <span class="bdg" id="tc3">0</span></div>
+    <div class="tab hidden" data-tab="lineup" id="tabLineup" style="color:var(--sp)">Lineups <span class="bdg" id="tc4">0</span></div>
+
+  </div>
+
+  <div id="viewall" class="hidden">
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Artist</th><th>Title</th><th>ISRC</th><th>Source</th><th>Release</th><th>Label</th><th>Country</th><th>Year</th><th>Genre</th><th>Dur</th><th>Status</th><th>AI</th></tr></thead>
+      <tbody id="tbAll"></tbody>
+    </table></div>
+  </div>
+  <div id="viewmatched" class="hidden">
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Artist</th><th>Title</th><th>ISRC</th><th>Source</th><th>Release</th><th>Label</th><th>Country</th><th>Year</th><th>Genre</th><th>Dur</th><th>AI</th></tr></thead>
+      <tbody id="tbMatch"></tbody>
+    </table></div>
+  </div>
+  <div id="viewreview" class="hidden"><div id="revCards"></div></div>
+  <div id="viewnotfound" class="hidden">
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Artist</th><th>Title</th><th>APIs Tried</th><th>Note</th><th></th></tr></thead>
+      <tbody id="tbNF"></tbody>
+    </table></div>
+  </div>
+  <div id="viewlineup" class="hidden">
+    <div class="ctrls" style="margin-top:12px">
+      <button class="btn btn-s" id="btnExportLineup">↓ Export Lineup CSV</button>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Artist</th><th>Title</th><th>ISRC</th><th>Year</th><th>Performer</th><th>Role</th><th>Featured</th><th>Credit Level</th><th>Credits URL</th></tr></thead>
+      <tbody id="tbLineup"></tbody>
+    </table></div>
+  </div>
+</div>
+<!-- MANUAL SEARCH MODAL -->
+<div class="msm-overlay hidden" id="msmOverlay" onclick="if(event.target===this)closeMSM()">
+  <div class="msm">
+    <div class="msm-head">
+      <h3>⌕ Manual Search</h3>
+      <button class="msm-close" onclick="closeMSM()">✕</button>
+    </div>
+    <div class="msm-body">
+      <div class="msm-row">
+        <div class="ci"><label>Artist</label><input id="msmArtist" type="text" placeholder="Artist name"></div>
+        <div class="ci"><label>Title</label><input id="msmTitle" type="text" placeholder="Track title"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-p" id="msmSearchBtn" onclick="runManualSearch()">⌕ Search</button>
+        <span class="msm-status" id="msmStatus"></span>
+      </div>
+      <div class="msm-results" id="msmResults"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toastEl"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let allRows=[],results=[],headers=[];
+let isRunning=false,isPaused=false,curIdx=0;
+let lineupRunning=false,lineupPaused=false,lineupIdx=0;
+let lineupRows=[]; // flat performer rows for export
+const RATE=390;
+
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+// Titles containing these keywords (inside brackets or parentheses) are non-original performances
+// Valid variants NOT in this list: edit, radio, single, album, original, extended
+const NON_ORIG=['remix','live','acoustic','rerecord','re-record','demo',
+  'alternative version','alt version','orchestral','stripped','unplugged',
+  'lounge version','karaoke','cover version','medley','megamix',
+  'a cappella','acapella','club mix','instrumental'];
+
+const CLASSICAL_GENRES=['classical','opera','chamber','orchestra','symphon',
+  'baroque','romantic','contemporary classical','choral','concerto','sonata',
+  'jazz','big band','bebop','swing','fusion'];
+
+const FEAT_PATTERNS=[
+  /\bfeat\.?\s+(.+)/i,/\bft\.?\s+(.+)/i,/\bfeaturing\s+(.+)/i,
+  /\bavec\s+(.+)/i,/\bavec la participation de\s+(.+)/i
+];
+
+// MusicBrainz relationship types to INCLUDE (performers only)
+const MB_PERFORMER_RELS=[
+  'performer','instrument','vocal','vocals','lead vocals','background vocals',
+  'conductor','concertmaster','soloist','piano','guitar','bass','drums',
+  'violin','viola','cello','double bass','flute','oboe','clarinet','bassoon',
+  'trumpet','trombone','horn','tuba','harp','organ','harpsichord','keyboard',
+  'saxophone','percussion','synthesizer','programming','additional'
+];
+// Roles to EXCLUDE (technical + songwriting)
+const MB_EXCLUDE_RELS=[
+  'recording','mix','mastering','producer','engineer','recording engineer',
+  'mix engineer','mastering engineer','arranger','composer','lyricist',
+  'writer','publisher','art direction','photography','liner notes',
+  'design','editor','compiler','co-ordination'
+];
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function fmtD(s){if(!s)return '';const m=Math.floor(s/60);return `${m}:${(s%60).toString().padStart(2,'0')}`;}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function csv(s){return(s||'').toString().replace(/"/g,'""');}
+function isNonOrig(t){
+  if(!t)return false;
+  const s=t.toLowerCase();
+  // Extract content inside () and [] brackets — only match keywords there
+  // This avoids false positives like a song called "Live Forever" or artist "The Demo"
+  const bracketed=[...s.matchAll(/[\(\[][^\)\]]*[\)\]]/g)].map(m=>m[0]).join(' ');
+  // Also check full string for hyphenated forms like "re-record" not always in brackets
+  const hyphenated=NON_ORIG.filter(k=>k.includes('-'));
+  return NON_ORIG.some(k=>{
+    if(hyphenated.includes(k)) return s.includes(k); // re-record etc can appear anywhere
+    return bracketed.includes(k);                    // others only inside brackets
+  });
+}
+function origSc(t){
+  // Returns 999 for non-original performances (excluded from auto-matching)
+  // Returns 0 for all valid variants (edit, radio, album, original, extended, etc.)
+  if(!t)return 0;
+  return isNonOrig(t)?999:0;
+}
+
+function isClassical(genre){
+  if(!genre)return false;
+  const g=genre.toLowerCase();
+  return CLASSICAL_GENRES.some(k=>g.includes(k));
+}
+
+function fmtSource(s){
+  if(!s)return '';
+  const map={'musicbrainz':'MusicBrainz','deezer':'Deezer','spotify':'Spotify','itunes':'iTunes','discogs':'Discogs'};
+  return s.split('+').map(p=>p.replace('*','').trim()).map(p=>map[p]||p).join(' / ');
+}
+
+function srcBadge(s){
+  if(!s)return '';
+  const parts=s.replace(/\*/g,'').split('+');
+  if(parts.length>1)return`<span class="sb sb-mg">MERGED</span>`;
+  const p=parts[0];
+  if(p==='musicbrainz')return`<span class="sb sb-mb">MB</span>`;
+  if(p==='deezer')return`<span class="sb sb-dz">DZ</span>`;
+  if(p==='spotify')return`<span class="sb sb-sp">SP</span>`;
+  if(p==='itunes')return`<span class="sb sb-it">IT</span>`;
+  return`<span class="sb sb-mb">${esc(p.substring(0,3).toUpperCase())}</span>`;
+}
+
+function log(msg,type=''){
+  const p=document.getElementById('logEl');p.classList.add('vis');
+  const el=document.createElement('div');el.className='le '+type;
+  el.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  p.appendChild(el);if(p.children.length>400)p.removeChild(p.firstChild);
+  p.scrollTop=p.scrollHeight;
+}
+function toast(msg,warn=false){
+  const t=document.getElementById('toastEl');t.textContent=msg;
+  t.className='toast show'+(warn?' warn':'');setTimeout(()=>t.className='toast',2800);
+}
+function setBadge(id,on){
+  const m={mb:'bMB',dz:'bDZ',it:'bIT',lfm:'bLFM',dg:'bDG',sp:'bSP'};
+  const el=document.getElementById(m[id]);if(!el)return;
+  el.className='ab'+(on?` on-${id}`:'');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ISO 3166-1 ALPHA-2 VALID COUNTRIES
+// ═══════════════════════════════════════════════════════════════
+const ISO2=new Set(['AC','AD','AE','AF','AG','AI','AL','AM','AO','AQ','AR','AS','AT','AU','AW','AX','AZ',
+  'BA','BB','BD','BE','BF','BG','BH','BI','BJ','BL','BM','BN','BO','BQ','BR','BS','BT','BV','BW','BY','BZ',
+  'CA','CC','CD','CF','CG','CH','CI','CK','CL','CM','CN','CO','CR','CU','CV','CW','CX','CY','CZ',
+  'DE','DJ','DK','DM','DO','DZ','EC','EE','EG','EH','ER','ES','ET','FI','FJ','FK','FM','FO','FR',
+  'GA','GB','GD','GE','GF','GG','GH','GI','GL','GM','GN','GP','GQ','GR','GS','GT','GU','GW','GY',
+  'HK','HM','HN','HR','HT','HU','ID','IE','IL','IM','IN','IO','IQ','IR','IS','IT','JE','JM','JO','JP',
+  'KE','KG','KH','KI','KM','KN','KP','KR','KW','KY','KZ','LA','LB','LC','LI','LK','LR','LS','LT','LU','LV','LY',
+  'MA','MC','MD','ME','MF','MG','MH','MK','ML','MM','MN','MO','MP','MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ',
+  'NA','NC','NE','NF','NG','NI','NL','NO','NP','NR','NU','NZ','OM','PA','PE','PF','PG','PH','PK','PL','PM','PN','PR',
+  'PS','PT','PW','PY','QA','RE','RO','RS','RU','RW','SA','SB','SC','SD','SE','SG','SH','SI','SJ','SK','SL','SM','SN',
+  'SO','SR','SS','ST','SV','SX','SY','SZ','TC','TD','TF','TG','TH','TJ','TK','TL','TM','TN','TO','TR','TT','TV','TW',
+  'TZ','UA','UG','UM','US','UY','UZ','VA','VC','VE','VG','VI','VN','VU','WF','WS','YE','YT','ZA','ZM','ZW']);
+
+// Extract year from ISRC (chars 6-7, e.g. FREH32307060 → pos 5-6 = "23" → 2023)
+function isrcYear(isrc){
+  if(!isrc||isrc.length<8)return null;
+  const yy=parseInt(isrc.substring(5,7));
+  if(isNaN(yy))return null;
+  return yy<=parseInt(new Date().getFullYear().toString().substring(2))?2000+yy:1900+yy;
+}
+
+// Extract country from ISRC (first 2 chars)
+function isrcCountry(isrc){
+  if(!isrc||isrc.length<2)return null;
+  const cc=isrc.substring(0,2).toUpperCase();
+  return ISO2.has(cc)?cc:null;
+}
+
+// Sanitise a country code — if not valid ISO2, return null
+function sanitiseCountry(cc){
+  if(!cc)return null;
+  const u=(cc||'').toUpperCase().trim();
+  return ISO2.has(u)?u:null;
+}
+
+let _jid=0;
+function jsonp(url,tmo=7000){
+  return new Promise((res,rej)=>{
+    const cb='_jcb'+(++_jid);
+    const t=setTimeout(()=>{delete window[cb];sc.remove();rej(new Error('timeout'));},tmo);
+    window[cb]=(d)=>{clearTimeout(t);delete window[cb];sc.remove();res(d);};
+    const sc=document.createElement('script');
+    sc.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
+    sc.onerror=()=>{clearTimeout(t);delete window[cb];rej(new Error('err'));};
+    document.head.appendChild(sc);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: MUSICBRAINZ
+// ═══════════════════════════════════════════════════════════════
+async function mbSearch(artist,title){
+  const q=encodeURIComponent(`recording:"${title}" AND artist:"${artist}"`);
+  try{
+    const r=await fetch(`https://musicbrainz.org/ws/2/recording?query=${q}&limit=10&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return[];
+    const d=await r.json();
+    return(d.recordings||[]).map(rec=>{
+      let yr=null;
+      if(rec.releases?.length){const ys=rec.releases.map(x=>x.date?parseInt(x.date):null).filter(Boolean);if(ys.length)yr=Math.min(...ys);}
+      if(!yr&&rec.date)yr=parseInt(rec.date);
+      const rel=(rec.releases||[])[0]||{};
+      return{
+        isrcs:rec.isrcs||[],recTitle:rec.title||'',disambig:rec.disambiguation||'',yr,
+        label:rel['label-info']?.[0]?.label?.name||'',country:rel.country||'',
+        relTitle:rel.title||'',dur:rec.length?Math.round(rec.length/1000):null,
+        score:rec.score||0,source:'musicbrainz',mbid:rec.id||'',
+        mbRelId:rel.id||'',  // first release ID — used to fetch release-level lineup credits
+        artistName:(rec['artist-credit']||[]).map(a=>a.artist?.name||a.name||'').filter(Boolean).join(', ')
+      };
+    });
+  }catch(e){return[];}
+}
+
+// Fetch full recording details with relationships for lineup
+async function mbRecordingDetail(mbid){
+  try{
+    const r=await fetch(`https://musicbrainz.org/ws/2/recording/${mbid}?inc=artist-rels+recording-rels&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+// Fetch release details with relationships for lineup (fallback)
+async function mbReleaseDetail(mbid){
+  try{
+    const r=await fetch(`https://musicbrainz.org/ws/2/release/${mbid}?inc=artist-rels+url-rels+recording-rels+recordings&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+// Parse MB relationships into performers
+function parseMBRels(rels,excludeRoles){
+  if(!rels)return[];
+  return rels
+    .filter(rel=>{
+      const type=(rel.type||'').toLowerCase();
+      if(excludeRoles&&MB_EXCLUDE_RELS.some(e=>type.includes(e)))return false;
+      // Must be a person (not label, place etc)
+      return rel['target-type']==='artist'||rel.artist;
+    })
+    .map(rel=>{
+      const name=rel.artist?.name||'';
+      const type=rel.type||'';
+      const attrs=(rel.attributes||[]).join(', ');
+      const role=attrs?`${type} (${attrs})`:type;
+      return{name,role:role||type,mbArtistId:rel.artist?.id||''};
+    })
+    .filter(p=>p.name);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: DEEZER
+// ═══════════════════════════════════════════════════════════════
+async function dzSearch(artist,title){
+  const q=encodeURIComponent(`artist:"${artist}" track:"${title}"`);
+  try{
+    const d=await jsonp(`https://api.deezer.com/search?q=${q}&limit=10&output=jsonp`,7000);
+    if(!d?.data)return[];
+    return d.data.filter(t=>t.isrc&&!isNonOrig(t.title||'')).map(t=>({
+      isrcs:[t.isrc],recTitle:t.title||'',disambig:'',
+      yr:t.album?.release_date?parseInt(t.album.release_date):null,
+      label:'',country:'',relTitle:t.album?.title||'',
+      dur:t.duration||null,score:80,artwork:t.album?.cover_medium||'',
+      artistName:t.artist?.name||'',
+      dzArtistId:t.artist?.id||null,
+      source:'deezer',dzTrackId:t.id||null
+    }));
+  }catch(e){return[];}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: ITUNES
+// ═══════════════════════════════════════════════════════════════
+async function itSearch(artist,title){
+  const q=encodeURIComponent(`${artist} ${title}`);
+  try{
+    const r=await fetch(`https://itunes.apple.com/search?term=${q}&media=music&entity=song&limit=5`);
+    if(!r.ok)return[];
+    const d=await r.json();
+    return(d.results||[]).map(t=>({
+      relTitle:t.collectionName||'',yr:t.releaseDate?parseInt(t.releaseDate):null,
+      genre:t.primaryGenreName||'',dur:t.trackTimeMillis?Math.round(t.trackTimeMillis/1000):null,
+      artwork:(t.artworkUrl100||'').replace('100x100','300x300')
+    }));
+  }catch(e){return[];}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: LAST.FM
+// ═══════════════════════════════════════════════════════════════
+async function lfmSearch(artist,title,key){
+  try{
+    const r=await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${key}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&format=json`);
+    if(!r.ok)return null;
+    const d=await r.json();
+    if(!d.track)return null;
+    return{tags:(d.track.toptags?.tag||[]).map(g=>g.name).slice(0,4).join(', '),mbid:d.track.mbid||''};
+  }catch(e){return null;}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: DISCOGS
+// ═══════════════════════════════════════════════════════════════
+async function dgSearch(artist,title,token){
+  try{
+    const q=encodeURIComponent(`${artist} ${title}`);
+    const r=await fetch(`https://api.discogs.com/database/search?q=${q}&type=release&per_page=5`,
+      {headers:{'Authorization':`Discogs token=${token}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+    if(!r.ok)return null;
+    const d=await r.json();
+    const f=(d.results||[])[0];if(!f)return null;
+    return{label:(f.label||[]).join(', '),country:f.country||'',yr:f.year?parseInt(f.year):null,
+      catno:f.catno||'',discogsId:f.id||null,releaseUrl:f.resource_url||''};
+  }catch(e){return null;}
+}
+
+// Fetch Discogs release extraartists for lineup
+async function dgReleaseDetail(releaseId,token){
+  try{
+    const r=await fetch(`https://api.discogs.com/releases/${releaseId}`,
+      {headers:{'Authorization':`Discogs token=${token}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API: SPOTIFY
+// ═══════════════════════════════════════════════════════════════
+let _spTok=null,_spExp=0;
+async function spGetToken(id,sec){
+  if(_spTok&&Date.now()<_spExp)return _spTok;
+  const r=await fetch('https://accounts.spotify.com/api/token',{
+    method:'POST',
+    headers:{'Authorization':`Basic ${btoa(id+':'+sec)}`,'Content-Type':'application/x-www-form-urlencoded'},
+    body:'grant_type=client_credentials'
+  });
+  if(!r.ok)throw new Error('Spotify auth failed');
+  const d=await r.json();
+  _spTok=d.access_token;_spExp=Date.now()+(d.expires_in-60)*1000;
+  return _spTok;
+}
+
+async function spSearch(artist,title,id,sec){
+  try{
+    const tok=await spGetToken(id,sec);
+    const q=encodeURIComponent(`track:${title} artist:${artist}`);
+    const r=await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=10`,
+      {headers:{'Authorization':`Bearer ${tok}`}});
+    if(!r.ok)return[];
+    const d=await r.json();
+    return(d.tracks?.items||[]).filter(t=>t.external_ids?.isrc&&!isNonOrig(t.name||'')).map(t=>({
+      isrcs:[t.external_ids.isrc],recTitle:t.name||'',disambig:'',
+      yr:t.album?.release_date?parseInt(t.album.release_date):null,
+      label:'',country:'',relTitle:t.album?.name||'',
+      dur:t.duration_ms?Math.round(t.duration_ms/1000):null,
+      score:Math.round((t.popularity||50)*.8+20),
+      artwork:t.album?.images?.[1]?.url||'',spotifyId:t.id,albumId:t.album?.id,
+      artistName:(t.artists||[]).map(a=>a.name).join(', '),
+      source:'spotify'
+    }));
+  }catch(e){log(`SP: ${e.message}`,'er');return[];}
+}
+
+async function spAlbumDetail(albumId,id,sec){
+  try{
+    const tok=await spGetToken(id,sec);
+    const r=await fetch(`https://api.spotify.com/v1/albums/${albumId}`,
+      {headers:{'Authorization':`Bearer ${tok}`}});
+    if(!r.ok)return null;
+    const d=await r.json();
+    return{label:d.label||'',upc:d.external_ids?.upc||'',genres:d.genres||[]};
+  }catch(e){return null;}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANDIDATE MERGING
+// ═══════════════════════════════════════════════════════════════
+function buildCands(mbR,dzR,spR){
+  const all=[];
+  for(const rec of mbR) for(const isrc of rec.isrcs) all.push({...rec,isrc,osc:origSc(rec.recTitle)});
+  for(const rec of dzR) for(const isrc of rec.isrcs) all.push({...rec,isrc,osc:origSc(rec.recTitle)});
+  for(const rec of (spR||[])) for(const isrc of rec.isrcs) all.push({...rec,isrc,osc:origSc(rec.recTitle)});
+  const orig=all.filter(c=>c.osc<999);if(!orig.length)return[];
+  const cnt={};orig.forEach(c=>cnt[c.isrc]=(cnt[c.isrc]||0)+1);
+  orig.forEach(c=>{c.multi=cnt[c.isrc]>1;if(c.multi){c.score+=25;c.osc=Math.max(0,c.osc-1);}});
+  const byI={};
+  orig.forEach(c=>{
+    if(!byI[c.isrc])byI[c.isrc]=c;
+    else{
+      const ex=byI[c.isrc];
+      if(c.score>ex.score)byI[c.isrc]={...c,source:ex.source+'+'+c.source};
+      else if(c.source!==ex.source)byI[c.isrc].source=ex.source+'+'+c.source;
+    }
+  });
+  return Object.values(byI).sort((a,b)=>{
+    if(a.osc!==b.osc)return a.osc-b.osc;
+    if(a.yr&&b.yr)return a.yr-b.yr;
+    if(a.yr)return -1;if(b.yr)return 1;
+    return b.score-a.score;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURED LOGIC
+// ═══════════════════════════════════════════════════════════════
+function getFeaturedNames(artist,title){
+  // Main artist always featured
+  const featured=new Set(artist.split(/[,&\/]/).map(s=>s.trim().toLowerCase()).filter(Boolean));
+  // Check title for featuring patterns
+  for(const pat of FEAT_PATTERNS){
+    const m=title.match(pat);
+    if(m){m[1].split(/[,&\/]/).forEach(s=>featured.add(s.trim().toLowerCase()));}
+  }
+  return featured;
+}
+
+function determineFeatured(performer,role,genre,artist,title,totalPerformers){
+  const classical=isClassical(genre);
+  const r=(role||'').toLowerCase();
+  const n=(performer||'').toLowerCase();
+  // Jazz leader always featured
+  if(r.includes('leader'))return true;
+  // Conductor always featured
+  if(r.includes('conductor'))return true;
+  if(classical){
+    // Classical/Jazz: soloist always featured
+    if(r.includes('soloist'))return true;
+    // If ensemble <= 6 people, all are featured
+    if(totalPerformers<=6)return true;
+    // Otherwise only soloists and conductors (handled above)
+    return false;
+  }else{
+    // Pop: check if name matches artist or featuring credit in title
+    const featNames=getFeaturedNames(artist,title);
+    return Array.from(featNames).some(fn=>n.includes(fn)||fn.includes(n));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESS TRACK (METADATA PASS)
+// ═══════════════════════════════════════════════════════════════
+async function processTrack(idx){
+  const row=allRows[idx];
+  const artist=(row.ARTIST||'').trim(),title=(row.TITLE||'').trim();
+  results[idx].status='processing';renderAll();
+
+  const cfg=getConfig();
+  let mbR=[],dzR=[],spR=[],itR=[],lfmD=null,dgD=null;
+  const tried=[];
+  const ps=[];
+  if(cfg.mb){tried.push('MB');ps.push(mbSearch(artist,title).then(r=>mbR=r));}
+  if(cfg.dz){tried.push('DZ');ps.push(dzSearch(artist,title).then(r=>dzR=r));}
+  if(cfg.it){tried.push('IT');ps.push(itSearch(artist,title).then(r=>itR=r));}
+  if(cfg.sp){tried.push('SP');ps.push(spSearch(artist,title,cfg.spId,cfg.spSec).then(r=>spR=r));}
+  await Promise.allSettled(ps);
+  await sleep(RATE);
+  if(cfg.lfm){tried.push('LFM');lfmD=await lfmSearch(artist,title,cfg.lfmKey);}
+  if(cfg.dg){tried.push('DG');dgD=await dgSearch(artist,title,cfg.dgToken);}
+
+  const cands=buildCands(mbR,dzR,spR);
+  results[idx].tried=tried.join('+');
+  let genre=itR[0]?.genre||'';
+  if(!genre&&lfmD?.tags)genre=lfmD.tags;
+
+  // Spotify album detail for label/UPC
+  let spLabel='',spUpc='';
+  if(cfg.sp&&spR.length>0){
+    try{
+      const best=spR[0];
+      if(best.albumId){
+        const ad=await spAlbumDetail(best.albumId,cfg.spId,cfg.spSec);
+        if(ad){spLabel=ad.label||'';spUpc=ad.upc||'';if(!genre&&ad.genres?.length)genre=ad.genres.join(', ');}
+      }
+    }catch(e){}
+  }
+
+  if(!cands.length){
+    results[idx].status='notfound';
+    results[idx].note=(mbR.length+dzR.length+spR.length)>0?'Only non-original versions found':'No results';
+    log(`✕ [${idx+1}] ${artist} – ${title} (${tried.join(',')})`, 'er');return;
+  }
+
+  const best=cands[0];
+  if(best.multi)results[idx].multiSource=true;
+  const needsRev=cands.length>1&&cands[0].osc===cands[1].osc&&cands[0].yr===cands[1].yr&&cands[0].isrc!==cands[1].isrc;
+
+  if(needsRev){
+    results[idx].status='review';results[idx].candidates=cands.slice(0,7);
+    results[idx].reason=`${cands.length} candidates, equal confidence`;results[idx].genre=genre;
+    log(`◆ [${idx+1}] ${artist} – ${title}: ${cands.length} candidates → review`,'wa');
+  }else{
+    results[idx].status='matched';
+    results[idx].isrc=best.isrc;
+    results[idx].recTitle=best.recTitle;
+    // Artist & title as they appear in the metadata source
+    results[idx].metaArtist=best.artistName||row.ARTIST;
+    results[idx].metaTitle=best.recTitle||title;
+    results[idx].yr=best.yr||isrcYear(best.isrc)||null;
+    // Country: sanitise, discard wildcards, fall back to ISRC country
+    const rawCountry=best.country||(dgD?.country)||'';
+    results[idx].country=sanitiseCountry(rawCountry)||isrcCountry(best.isrc)||'';
+    results[idx].label=spLabel||best.label||(dgD?.label)||'';
+    results[idx].relTitle=best.relTitle;
+    results[idx].dur=best.dur;
+    results[idx].genre=genre;
+    results[idx].artwork=best.artwork||(itR[0]?.artwork)||'';
+    results[idx].upc=spUpc||'';
+    results[idx].source=best.source+(best.multi?'*':'');
+    results[idx].mbid=best.mbid||'';
+    // Find the MB recording that contains the winning ISRC and use its release ID
+    const mbMatch=mbR.find(rec=>rec.isrcs?.includes(best.isrc));
+    results[idx].mbReleaseId=mbMatch?.mbRelId||best.mbRelId||'';
+    results[idx].dgId=dgD?.discogsId||null;
+    results[idx].dzArtistId=best.dzArtistId||null;
+    log(`✓ [${idx+1}] ${artist} – ${title} → ${best.isrc} (${best.yr||'?'}) [${fmtSource(best.source)}]${best.multi?' ★':''}`, 'ok');
+  }
+}
+
+// ── Name similarity — normalise and compare ───────────────────
+function normaliseName(s){
+  return(s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+function nameSimilarity(a,b){
+  const na=normaliseName(a),nb=normaliseName(b);
+  if(na===nb)return 1;
+  if(!na||!nb)return 0;
+  // Containment only counts if lengths are close
+  if(na.includes(nb)||nb.includes(na)){
+    const ratio=Math.min(na.length,nb.length)/Math.max(na.length,nb.length);
+    return ratio>=0.7?0.92:0.6;
+  }
+  function bigrams(s){const bg=new Set();for(let i=0;i<s.length-1;i++)bg.add(s.slice(i,i+2));return bg;}
+  const ba=bigrams(na),bb=bigrams(nb);
+  if(!ba.size||!bb.size)return 0;
+  let inter=0;ba.forEach(g=>{if(bb.has(g))inter++;});
+  return(2*inter)/(ba.size+bb.size);
+}
+const NAME_SIM_THRESHOLD=0.90;
+
+// ═══════════════════════════════════════════════════════════════
+// LINEUP FALLBACK APIs
+// ═══════════════════════════════════════════════════════════════
+
+// ── Shared caches — keyed by ID, reset each lineup run ────────
+const _mbRecordingCache={};  // mbid → detail
+const _mbReleaseCache={};    // release mbid → detail
+const _dgReleaseCache={};    // discogs release id → detail
+
+async function cachedMbRecordingDetail(mbid){
+  if(_mbRecordingCache[mbid])return _mbRecordingCache[mbid];
+  await sleep(RATE);
+  const d=await mbRecordingDetail(mbid);
+  if(d)_mbRecordingCache[mbid]=d;
+  return d;
+}
+async function cachedMbReleaseDetail(mbid){
+  if(_mbReleaseCache[mbid])return _mbReleaseCache[mbid];
+  await sleep(RATE);
+  const d=await mbReleaseDetail(mbid);
+  if(d)_mbReleaseCache[mbid]=d;
+  return d;
+}
+async function cachedDgReleaseDetail(id,token){
+  if(_dgReleaseCache[id])return _dgReleaseCache[id];
+  await sleep(RATE);
+  const d=await dgReleaseDetail(id,token);
+  if(d)_dgReleaseCache[id]=d;
+  return d;
+}
+
+// Non-person heuristic filter — returns true if name is clearly not a person
+const NON_PERSON_WORDS=['quartet','trio','duo','quintet','sextet','orchestra','ensemble',
+  'band','project','collective','choir','choeur','chœur','philharmonic','symphon',
+  'les ','the ','club','crew','feat','vs','&','+','orchestra','group','company',
+  'théâtre','theater','ballet','opera','opéra'];
+function looksLikeNonPerson(name){
+  const n=name.toLowerCase();
+  if(NON_PERSON_WORDS.some(w=>n.includes(w)))return true;
+  const words=name.trim().split(/\s+/);
+  if(words.length>3)return true;   // more than 3 words → likely not a person
+  if(/\d/.test(name))return true;  // contains numbers
+  return false;
+}
+
+// MB artist search — returns {isPerson, mbArtistId, url}
+async function mbArtistTypeCheck(artistName){
+  try{
+    await sleep(RATE);
+    const q=encodeURIComponent(artistName);
+    const r=await fetch(`https://musicbrainz.org/ws/2/artist?query=artist:${q}&limit=3&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return{isPerson:false,mbArtistId:null,url:''};
+    const d=await r.json();
+    const artists=d.artists||[];
+    // Find best match — prefer exact name match
+    const match=artists.find(a=>a.name?.toLowerCase()===artistName.toLowerCase())
+      ||artists.find(a=>a.score>=85)
+      ||artists[0];
+    if(!match)return{isPerson:false,mbArtistId:null,url:''};
+    const isPerson=(match.type||'').toLowerCase()==='person';
+    return{
+      isPerson,
+      mbArtistId:match.id||null,
+      url:isPerson?`https://musicbrainz.org/artist/${match.id}`:''
+    };
+  }catch(e){return{isPerson:false,mbArtistId:null,url:''};}
+}
+
+
+async function mbArtistMembers(mbid){
+  try{
+    await sleep(RATE);
+    const r=await fetch(`https://musicbrainz.org/ws/2/artist/${mbid}?inc=artist-rels&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return[];
+    const d=await r.json();
+    const rels=(d.relations||[]).filter(rel=>
+      rel['target-type']==='artist'&&
+      ['member of band','collaboration','instrumental supporting musician'].includes(rel.type||'')
+    );
+    return rels.map(rel=>({
+      name:rel.artist?.name||'',
+      role:rel.attributes?.length?rel.attributes.join(', '):(rel.type||'member'),
+      mbArtistId:rel.artist?.id||''
+    })).filter(p=>p.name);
+  }catch(e){return[];}
+}
+
+// MB: resolve artist MBID from a recording MBID
+async function mbArtistIdFromRecording(mbid){
+  try{
+    const r=await fetch(`https://musicbrainz.org/ws/2/recording/${mbid}?inc=artists&fmt=json`,
+      {headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+    if(!r.ok)return null;
+    const d=await r.json();
+    return (d['artist-credit']||[])[0]?.artist?.id||null;
+  }catch(e){return null;}
+}
+
+// Discogs artist members
+async function dgArtistMembers(artistName,token){
+  try{
+    await sleep(RATE);
+    const q=encodeURIComponent(artistName);
+    const r=await fetch(`https://api.discogs.com/database/search?q=${q}&type=artist&per_page=3`,
+      {headers:{'Authorization':`Discogs token=${token}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+    if(!r.ok)return{members:[],url:'',matchedName:''};
+    const d=await r.json();
+    const artist=(d.results||[])[0];
+    if(!artist?.id)return{members:[],url:'',matchedName:''};
+    const matchedName=artist.title||'';
+    await sleep(RATE);
+    const ar=await fetch(`https://api.discogs.com/artists/${artist.id}`,
+      {headers:{'Authorization':`Discogs token=${token}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+    if(!ar.ok)return{members:[],url:'',matchedName};
+    const ad=await ar.json();
+    const members=(ad.members||[]).filter(m=>m.active!==false);
+    return{
+      members:members.map(m=>({name:m.name||'',role:'member',mbArtistId:''})),
+      url:`https://www.discogs.com/artist/${artist.id}`,
+      matchedName
+    };
+  }catch(e){return{members:[],url:'',matchedName:''};}
+}
+
+// TheAudioDB artist members (free key=2)
+async function tadbArtistMembers(artistName){
+  try{
+    await sleep(200);
+    const q=encodeURIComponent(artistName);
+    const r=await fetch(`https://www.theaudiodb.com/api/v1/json/2/search.php?s=${q}`);
+    if(!r.ok)return{members:[],url:'',matchedName:''};
+    const d=await r.json();
+    const artist=(d.artists||[])[0];
+    if(!artist)return{members:[],url:'',matchedName:''};
+    const matchedName=artist.strArtist||'';
+    const memberStr=artist.strArtists||'';
+    if(!memberStr)return{members:[],url:'',matchedName};
+    const members=memberStr.split('|').map(s=>s.trim()).filter(Boolean)
+      .map(n=>({name:n,role:'member',mbArtistId:''}));
+    return{members,url:`https://www.theaudiodb.com/artist/${artist.idArtist}`,matchedName};
+  }catch(e){return{members:[],url:'',matchedName:''};}
+}
+
+// Wikipedia/Wikidata members via MediaWiki API
+async function wikiArtistMembers(artistName){
+  try{
+    await sleep(200);
+    const q=encodeURIComponent(artistName);
+    const sr=await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&format=json&origin=*&srlimit=3`);
+    if(!sr.ok)return{members:[],url:'',matchedName:''};
+    const sd=await sr.json();
+    const page=(sd.query?.search||[])[0];
+    if(!page)return{members:[],url:'',matchedName:''};
+    const matchedName=page.title||'';
+    const pr=await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles=${encodeURIComponent(page.title)}&format=json&origin=*`);
+    if(!pr.ok)return{members:[],url:'',matchedName};
+    const pd=await pr.json();
+    const pages=pd.query?.pages||{};
+    const content=Object.values(pages)[0]?.revisions?.[0]?.slots?.main?.['*']||'';
+    const memberMatch=content.match(/\|\s*(?:current_members|members)\s*=([^|}]+)/i);
+    if(!memberMatch)return{members:[],url:'',matchedName};
+    const raw=memberMatch[1];
+    const names=raw.split(/\n|,|\*/)
+      .map(s=>s.replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g,'$1').replace(/[*\[\]{}]/g,'').trim())
+      .filter(s=>s.length>1&&s.length<60);
+    if(!names.length)return{members:[],url:'',matchedName};
+    return{
+      members:names.map(n=>({name:n,role:'member',mbArtistId:''})),
+      url:`https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+      matchedName
+    };
+  }catch(e){return{members:[],url:'',matchedName:''};}
+}
+
+// Call the Netlify function to scrape AllMusic credits server-side
+async function fetchAllMusicViaFunction(amUrl){
+  try{
+    const endpoint='/.netlify/functions/allmusic-credits?url='+encodeURIComponent(amUrl);
+    const r=await fetch(endpoint);
+    if(!r.ok)return{members:[],url:''};
+    const d=await r.json();
+    if(!d.performers?.length)return{members:[],url:''};
+    return{
+      members:d.performers.map(p=>({name:p.name||'',role:p.role||'performer',mbArtistId:''})).filter(p=>p.name),
+      url:d.url||amUrl
+    };
+  }catch(e){return{members:[],url:''};}
+}
+
+// AllMusic credits from a specific MB-provided URL — uses Netlify function
+async function allMusicCreditsByUrl(amUrl){
+  const creditsUrl=amUrl.replace(/#.*$/,'').replace(/\/credits$/,'')+'/credits';
+  log(`⟳ AllMusic: fetching ${creditsUrl}`,'wa');
+  return await fetchAllMusicViaFunction(creditsUrl);
+}
+
+// AllMusic credits search — finds album URL via Claude then fetches via Netlify function
+async function allMusicCredits(artistName,title){
+  try{
+    // Step 1: use Claude to find the AllMusic album credits URL
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:200,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:
+          'Find the AllMusic album credits page URL for the song "'+title+'" by "'+artistName+'". '+
+          'Search allmusic.com and return only the credits page URL. '+
+          'The URL format is: https://www.allmusic.com/album/SLUG-mwNNNNNNNNN/credits '+
+          'or https://www.allmusic.com/album/release/SLUG-mrNNNNNNNNN/credits. '+
+          'Return ONLY the URL, nothing else. If not found return empty string.'
+        }]
+      })
+    });
+    if(!r.ok)return{members:[],url:''};
+    const d=await r.json();
+    const text=(d.content||[]).map(c=>c.text||'').join('').trim();
+    const urlMatch=text.match(/https:\/\/www\.allmusic\.com\/album\/[^\s"'<>]+/);
+    if(!urlMatch)return{members:[],url:''};
+    const creditsUrl=urlMatch[0].replace(/#.*$/,'').replace(/\/credits$/,'')+'/credits';
+    log(`⟳ AllMusic: found URL ${creditsUrl}`,'wa');
+    // Step 2: fetch the actual credits via Netlify function
+    return await fetchAllMusicViaFunction(creditsUrl);
+  }catch(e){return{members:[],url:''};}
+}
+
+// Web search fallback using Claude API for artist lineup
+async function webSearchLineup(artistName,title,genre){
+  try{
+    const query=`${artistName} band members lineup performers`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:500,
+        messages:[{role:'user',content:
+          `Who are the main performers/members of "${artistName}"? `+
+          `Context: track title "${title}", genre "${genre||'unknown'}". `+
+          `Return ONLY a JSON array of objects with "name" and "role" fields. `+
+          `Include only individual people, not ensembles. Current lineup. `+
+          `Example: [{"name":"John Smith","role":"vocals"},{"name":"Jane Doe","role":"guitar"}]. `+
+          `If you cannot determine with reasonable confidence, return []. `+
+          `Return JSON only, no other text.`
+        }]
+      })
+    });
+    if(!r.ok)return{members:[],url:''};
+    const d=await r.json();
+    const text=(d.content||[]).map(c=>c.text||'').join('').trim();
+    const clean=text.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+    if(!Array.isArray(parsed)||!parsed.length)return{members:[],url:''};
+    return{
+      members:parsed.map(p=>({name:p.name||'',role:p.role||'performer',mbArtistId:''})).filter(p=>p.name),
+      url:''  // no direct URL for AI-generated results
+    };
+  }catch(e){return{members:[],url:''};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESS TRACK LINEUP (PASS 2) — parallel sources + conflict review
+// ═══════════════════════════════════════════════════════════════
+async function processLineup(idx){
+  const row=allRows[idx];
+  const r=results[idx];
+  if(r.status==='notfound'||r.status==='pending')return;
+
+  const artist=(r.metaArtist||(row.ARTIST||'')).trim();
+  const title=(r.metaTitle||(row.TITLE||'')).trim();
+  const genre=r.genre||'';
+  const cfg=getConfig();
+
+  r.lineupStatus='processing';
+
+  // ── Phase 1: gather recording-level credits from all three primary sources in parallel ──
+  const [mbRecordingPerfs, dgReleasePerfs, amPerfs] = await Promise.all([
+    // 1. MusicBrainz recording level
+    (async()=>{
+      if(!r.mbid) return null;
+      const detail=await cachedMbRecordingDetail(r.mbid);
+      if(!detail?.relations?.length) return null;
+      const rels=parseMBRels(detail.relations,true);
+      if(!rels.length) return null;
+      return {performers:rels, creditLevel:'recording', source:'MusicBrainz', url:`https://musicbrainz.org/recording/${r.mbid}`};
+    })(),
+    // 2. Discogs release level
+    (async()=>{
+      let dgId=r.dgId||null;
+      if(!dgId&&cfg.dg&&r.isrc){
+        try{
+          await sleep(RATE);
+          const q=encodeURIComponent(r.isrc);
+          const rs=await fetch(`https://api.discogs.com/database/search?barcode=${q}&per_page=3`,
+            {headers:{'Authorization':`Discogs token=${cfg.dgToken}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+          if(rs.ok){const ds=await rs.json();dgId=(ds.results||[])[0]?.id||null;}
+        }catch(e){}
+      }
+      if(!dgId&&cfg.dg&&r.relTitle){
+        try{
+          await sleep(RATE);
+          const q=encodeURIComponent(`${artist} ${r.relTitle}`);
+          const rs=await fetch(`https://api.discogs.com/database/search?q=${q}&type=release&per_page=3`,
+            {headers:{'Authorization':`Discogs token=${cfg.dgToken}`,'User-Agent':'ISRCLineupLookup/3.0'}});
+          if(rs.ok){const ds=await rs.json();dgId=(ds.results||[])[0]?.id||null;if(dgId)r.dgId=dgId;}
+        }catch(e){}
+      }
+      if(!cfg.dg||!dgId) return null;
+      const dgDet=await cachedDgReleaseDetail(dgId,cfg.dgToken);
+      if(!dgDet) return null;
+      // Non-performer role parts to strip or exclude
+      const TECH_ROLES=['master','lacquer','cut by','lyric','music by','written by',
+        'composed','arranged','arranger','mixing','mixed by','engineer','recorded by',
+        'producer','produced','design','photography','photo','art direction','liner',
+        'publisher','manager','promotion','co-ordination','coordinator','compiler',
+        'artwork','remaster','restoration','supervised'];
+      const isTechPart=s=>TECH_ROLES.some(t=>s.toLowerCase().includes(t));
+      const cleaned=(dgDet.extraartists||[]).map(a=>{
+        const parts=(a.role||'').split(',').map(s=>s.trim()).filter(Boolean);
+        const perfParts=parts.filter(p=>!isTechPart(p));
+        if(!perfParts.length) return null; // all parts are technical — exclude
+        return {name:a.name||'', role:perfParts.join(', '), mbArtistId:''};
+      }).filter(Boolean);
+      if(!cleaned.length) return null;
+      return {performers:cleaned, creditLevel:'release', source:'Discogs', url:`https://www.discogs.com/release/${dgId}`};
+    })(),
+    // 3. AllMusic (Claude web search) — always run in parallel
+    (async()=>{
+      log(`⟳ [${idx+1}] ${artist}: searching AllMusic…`,'wa');
+      const{members,url}=await allMusicCredits(artist,title);
+      if(!members.length) return null;
+      return {performers:members, creditLevel:'recording', source:'AllMusic', url:url||'https://www.allmusic.com'};
+    })()
+  ]);
+
+  // Also check MB release level if MB recording had no results
+  let mbReleasePerfs=null;
+  let mbAllMusicUrl=''; // AllMusic URL found via MB release url-rels
+  if(r.mbReleaseId){
+    const rDetail=await cachedMbReleaseDetail(r.mbReleaseId);
+    if(rDetail){
+      // Extract AllMusic URL from url-rels (added to MB release fetch)
+      const urlRels=rDetail.relations?.filter(rel=>rel['target-type']==='url')||[];
+      const amRel=urlRels.find(rel=>(rel.url?.resource||'').includes('allmusic.com'));
+      if(amRel) mbAllMusicUrl=amRel.url.resource;
+      // Extract performer credits from artist-rels
+      if(!mbRecordingPerfs&&rDetail.relations?.length){
+        const rels=parseMBRels(rDetail.relations,true);
+        if(rels.length) mbReleasePerfs={performers:rels, creditLevel:'release', source:'MusicBrainz (release)', url:`https://musicbrainz.org/release/${r.mbReleaseId}`};
+      }
+    }
+  }
+  // If MB gave us a direct AllMusic URL, upgrade the parallel AllMusic result
+  // by re-fetching with the exact URL (more reliable than title search)
+  if(mbAllMusicUrl&&!amPerfs){
+    log(`⟳ [${idx+1}] ${artist}: retrying AllMusic with MB URL…`,'wa');
+    const{members,url}=await allMusicCreditsByUrl(mbAllMusicUrl);
+    if(members.length){
+      // Splice into foundSources below by replacing amPerfs reference
+      foundSources_amOverride={performers:members, creditLevel:'recording', source:'AllMusic', url};
+    }
+  }
+  let foundSources_amOverride=null;
+
+  // Collect all sources that returned results, auto-pick the richest
+  const foundSources=[mbRecordingPerfs, mbReleasePerfs, dgReleasePerfs, foundSources_amOverride||amPerfs].filter(Boolean);
+
+  // Log all sources found
+  foundSources.forEach(s=>log(`♪ [${idx+1}] ${artist}: ${s.performers.length} performers (${s.source})`,'sp'));
+
+  let performers=[];
+  let creditLevel='';
+  let creditsUrl='';
+
+  if(foundSources.length>0){
+    // Auto-pick source with most performers
+    const best=foundSources.reduce((a,b)=>b.performers.length>a.performers.length?b:a);
+    performers=best.performers;
+    creditLevel=best.creditLevel;
+    creditsUrl=best.url;
+    if(foundSources.length>1){
+      const others=foundSources.filter(s=>s!==best).map(s=>`${s.source}(${s.performers.length})`).join(', ');
+      log(`✓ [${idx+1}] ${artist}: auto-selected ${best.source} (${best.performers.length}) over ${others}`,'ok');
+    }
+  }
+
+  if(!performers.length){
+    // ── Phase 2: fallback chain (no primary source found anything) ──
+    let performers2=[];
+
+    // 5. MB artist entity members
+    let mbArtistId=r._mbArtistId||null;
+    if(!mbArtistId&&r.mbid){mbArtistId=await mbArtistIdFromRecording(r.mbid);if(mbArtistId)r._mbArtistId=mbArtistId;}
+    if(mbArtistId){
+      const members=await mbArtistMembers(mbArtistId);
+      const filtered=members.filter(m=>!looksLikeNonPerson(m.name));
+      if(filtered.length){performers2=filtered;creditLevel='artist';creditsUrl=`https://musicbrainz.org/artist/${mbArtistId}`;log(`♪ [${idx+1}] ${artist}: ${filtered.length} members (MB artist)`,'sp');}
+    }
+    // 6. Discogs artist members
+    if(!performers2.length&&cfg.dg){
+      const{members,url,matchedName}=await dgArtistMembers(artist,cfg.dgToken);
+      const sim=nameSimilarity(artist,matchedName||'');
+      if(members.length&&sim>=NAME_SIM_THRESHOLD){performers2=members;creditLevel='artist';creditsUrl=url;log(`♪ [${idx+1}] ${artist}: ${members.length} members (Discogs artist, sim=${sim.toFixed(2)})`,'wa');}
+      else if(members.length)log(`○ [${idx+1}] ${artist}: Discogs artist rejected — "${matchedName}" sim=${sim.toFixed(2)}`,'er');
+    }
+    // 7. TheAudioDB members
+    if(!performers2.length){
+      const{members,url,matchedName}=await tadbArtistMembers(artist);
+      const sim=nameSimilarity(artist,matchedName||'');
+      if(members.length&&sim>=NAME_SIM_THRESHOLD){performers2=members;creditLevel='artist';creditsUrl=url;log(`♪ [${idx+1}] ${artist}: ${members.length} members (TheAudioDB, sim=${sim.toFixed(2)})`,'wa');}
+      else if(members.length)log(`○ [${idx+1}] ${artist}: TheAudioDB rejected — "${matchedName}" sim=${sim.toFixed(2)}`,'er');
+    }
+    // 8. Wikipedia members
+    if(!performers2.length){
+      const{members,url,matchedName}=await wikiArtistMembers(artist);
+      const sim=nameSimilarity(artist,matchedName||'');
+      if(members.length&&sim>=NAME_SIM_THRESHOLD){performers2=members;creditLevel='artist';creditsUrl=url;log(`♪ [${idx+1}] ${artist}: ${members.length} members (Wikipedia, sim=${sim.toFixed(2)})`,'wa');}
+      else if(members.length)log(`○ [${idx+1}] ${artist}: Wikipedia rejected — "${matchedName}" sim=${sim.toFixed(2)}`,'er');
+    }
+    // 9. Web search / Claude AI fallback
+    if(!performers2.length){
+      log(`⟳ [${idx+1}] ${artist}: trying AI web search fallback…`,'wa');
+      const{members,url}=await webSearchLineup(artist,title,genre);
+      if(members.length){performers2=members;creditLevel='artist';creditsUrl=url||'';log(`♪ [${idx+1}] ${artist}: ${members.length} members (AI search)`,'sp');}
+    }
+    // 10. Solo artist inferred row
+    if(!performers2.length&&!looksLikeNonPerson(artist)){
+      log(`⟳ [${idx+1}] ${artist}: checking MB artist type…`,'wa');
+      const mbArtistIdToUse=mbArtistId||null;
+      let isPerson=false;let personUrl='';
+      if(mbArtistIdToUse){
+        try{
+          await sleep(RATE);
+          const ar=await fetch(`https://musicbrainz.org/ws/2/artist/${mbArtistIdToUse}?fmt=json`,{headers:{'User-Agent':'ISRCLineupLookup/3.0 (browser)'}});
+          if(ar.ok){const ad=await ar.json();isPerson=(ad.type||'').toLowerCase()==='person';personUrl=`https://musicbrainz.org/artist/${mbArtistIdToUse}`;}
+        }catch(e){}
+      }else{const check=await mbArtistTypeCheck(artist);isPerson=check.isPerson;personUrl=check.url;}
+      if(isPerson){performers2=[{name:artist,role:'Lead Artist',mbArtistId:mbArtistId||''}];creditLevel='inferred';creditsUrl='';log(`♪ [${idx+1}] ${artist}: inferred as solo performer (MB Person)`,'sp');}
+      else log(`○ [${idx+1}] ${artist}: not a Person in MB, no inferred row`,'er');
+    }
+    performers=performers2;
+  }
+
+  // ── Build lineup rows ─────────────────────────────────────────
+  if(performers.length){
+    const totalPerf=performers.length;
+    const rows=performers.map(p=>{
+      const isSoloInferred=creditLevel==='inferred';
+      const featured=isSoloInferred?true:determineFeatured(p.name,p.role,genre,artist,title,totalPerf);
+      return{...buildMetaRow(idx),
+        PERFORMER_NAME:p.name,PERFORMER_ROLE:p.role,
+        FEATURED:featured?'Yes':'No',
+        CREDIT_LEVEL:creditLevel,
+        CREDITS_URL:creditsUrl};
+    });
+    lineupRows.push(...rows);
+    r.lineupStatus='found';r.performerCount=totalPerf;r.creditLevel=creditLevel;
+  }else{
+    lineupRows.push({...buildMetaRow(idx),
+      PERFORMER_NAME:'',PERFORMER_ROLE:'',FEATURED:'',CREDIT_LEVEL:'',CREDITS_URL:''});
+    r.lineupStatus='notfound';r.performerCount=0;
+    log(`○ [${idx+1}] ${artist} – ${title}: no performer credits found`,'er');
+  }
+}
+
+// Build the metadata portion of a lineup row — correct column order
+// Original CSV cols → ISRC → META_ARTIST → META_TITLE → RELEASE_TITLE → rest
+function buildMetaRow(idx){
+  const row=allRows[idx];
+  const r=results[idx];
+  const obj={};
+  // Original CSV columns first
+  headers.forEach(h=>obj[h]=row[h]||'');
+  // Then enriched metadata in correct order
+  const isrc=r.isrc||'';
+  const yr=r.yr||isrcYear(isrc)||'';
+  const rawCountry=r.country||'';
+  const country=sanitiseCountry(rawCountry)||isrcCountry(isrc)||'';
+  obj.ISRC=isrc;
+  obj.META_ARTIST=r.metaArtist||row.ARTIST||'';
+  obj.META_TITLE=r.metaTitle||row.TITLE||'';
+  obj.RELEASE_TITLE=r.relTitle||'';
+  obj.LABEL=r.label||'';
+  obj.COUNTRY_OF_PRODUCTION=country;
+  obj.YEAR_OF_FIRST_RELEASE=yr;
+  obj.DURATION_SEC=r.dur||'';
+  obj.GENRE=r.genre||'';
+  obj.UPC=r.upc||'';
+  obj.SOURCE=fmtSource(r.source);
+  obj.LOOKUP_STATUS=r.status||'';
+  obj.AI_FLAG=r.aiFlag||'';
+  obj.AI_AVG_ALBUMS_PER_YEAR=r.aiAvgPerYear||'';
+  obj.AI_CHECK_SOURCE=r.aiSource||'';
+  return obj;
+}
+
+// ═══════════════════════════════════════════════════════════════
+const AI_ALBUM_THRESHOLD=5;
+let aiCache={};
+
+function aiFlagHtml(r){
+  const f=r?.aiFlag;
+  if(!f||f==='unknown')return`<span class="ai-flag ai-unk">–</span>`;
+  if(f==='potential_ai'){
+    const tip=`${r.aiAvgPerYear} albums/yr · ${r.aiTotalAlbums} total · ${r.aiSource}`;
+    return`<span class="ai-flag ai-yes" title="${tip}">⚠ AI?</span>`;
+  }
+  return`<span class="ai-flag ai-no" title="${r.aiAvgPerYear} albums/yr · ${r.aiSource}">✓</span>`;
+}
+
+async function dzArtistAlbums(artistName, dzArtistId){
+  try{
+    let artistId=dzArtistId||null;
+    // If we have the canonical Deezer artist ID from the metadata pass, use it directly
+    if(!artistId){
+      const q=encodeURIComponent(artistName);
+      const sr=await jsonp(`https://api.deezer.com/search/artist?q=${q}&limit=5&output=jsonp`,6000);
+      if(!sr?.data?.length)return null;
+      const match=sr.data.find(a=>nameSimilarity(a.name||'',artistName)>=NAME_SIM_THRESHOLD)||null;
+      if(!match)return null;
+      artistId=match.id;
+    }
+    await sleep(300);
+    const ar=await jsonp(`https://api.deezer.com/artist/${artistId}/albums?limit=100&output=jsonp`,7000);
+    if(!ar?.data)return null;
+    // Filter to full albums only (record_type==='album'), exclude singles, live, compilation
+    const albums=ar.data.filter(a=>(a.record_type||'').toLowerCase()==='album');
+    return{albums:albums.length?albums:ar.data,source:'Deezer'};
+  }catch(e){return null;}
+}
+
+async function spArtistAlbums(artistName,spId,spSec){
+  if(!spId||!spSec)return null;
+  try{
+    const tok=await spGetToken(spId,spSec);
+    const q=encodeURIComponent(artistName);
+    const sr=await fetch(`https://api.spotify.com/v1/search?q=${q}&type=artist&limit=5`,
+      {headers:{'Authorization':`Bearer ${tok}`}});
+    if(!sr.ok)return null;
+    const sd=await sr.json();
+    const match=(sd.artists?.items||[]).find(a=>nameSimilarity(a.name||'',artistName)>=NAME_SIM_THRESHOLD)||null;
+    if(!match)return null;
+    await sleep(200);
+    const ar=await fetch(`https://api.spotify.com/v1/artists/${match.id}/albums?include_groups=album&limit=50`,
+      {headers:{'Authorization':`Bearer ${tok}`}});
+    if(!ar.ok)return null;
+    const ad=await ar.json();
+    return{albums:(ad.items||[]).map(a=>({release_date:a.release_date})),source:'Spotify'};
+  }catch(e){return null;}
+}
+
+async function itArtistAlbums(artistName){
+  try{
+    const q=encodeURIComponent(artistName);
+    const r=await fetch(`https://itunes.apple.com/search?term=${q}&entity=album&attribute=artistTerm&limit=50`);
+    if(!r.ok)return null;
+    const d=await r.json();
+    const results=(d.results||[]).filter(x=>x.wrapperType==='collection'&&x.collectionType==='Album');
+    if(!results.length)return null;
+    return{albums:results.map(a=>({release_date:(a.releaseDate||'').substring(0,4)})),source:'iTunes'};
+  }catch(e){return null;}
+}
+
+function calcAlbumRate(albums){
+  const byYear={};
+  (albums||[]).forEach(a=>{
+    const yr=parseInt((a.release_date||'').substring(0,4));
+    if(yr>=2000&&yr<=new Date().getFullYear())byYear[yr]=(byYear[yr]||0)+1;
+  });
+  const years=Object.keys(byYear).map(Number);
+  if(!years.length)return{avgPerYear:0,totalAlbums:0,yearsActive:0};
+  const yearsActive=Math.max(1,Math.max(...years)-Math.min(...years)+1);
+  const total=Object.values(byYear).reduce((a,b)=>a+b,0);
+  return{avgPerYear:total/yearsActive,totalAlbums:total,yearsActive};
+}
+
+async function checkArtistAI(artistName,cfg,dzArtistId){
+  const key=normaliseName(artistName);
+  if(aiCache[key])return aiCache[key];
+  let albumData=await dzArtistAlbums(artistName,dzArtistId);
+  if(!albumData&&cfg.sp)albumData=await spArtistAlbums(artistName,cfg.spId,cfg.spSec);
+  if(!albumData)albumData=await itArtistAlbums(artistName);
+  if(!albumData){
+    const r={flag:'unknown',avgPerYear:0,totalAlbums:0,yearsActive:0,source:'none'};
+    return aiCache[key]=r;
+  }
+  const{avgPerYear,totalAlbums,yearsActive}=calcAlbumRate(albumData.albums);
+  const r={flag:avgPerYear>AI_ALBUM_THRESHOLD?'potential_ai':'ok',
+    avgPerYear:Math.round(avgPerYear*10)/10,totalAlbums,yearsActive,source:albumData.source};
+  return aiCache[key]=r;
+}
+
+async function runAICheck(){
+  document.getElementById('btnAI').disabled=true;
+  document.getElementById('btnAI2').disabled=true;
+  aiCache={};
+  const cfg=getConfig();
+  const artistMap={};
+  results.forEach((r,i)=>{
+    const name=(r.metaArtist||allRows[i].ARTIST||'').trim();
+    if(!name)return;
+    const key=normaliseName(name);
+    if(!artistMap[key]){artistMap[key]={displayName:name,indices:[],dzArtistId:null};}
+    artistMap[key].indices.push(i);
+    // Collect the Deezer artist ID if available — first one found wins
+    if(!artistMap[key].dzArtistId&&r.dzArtistId){
+      artistMap[key].dzArtistId=r.dzArtistId;
+    }
+  });
+  const unique=Object.entries(artistMap);
+  log(`⚠ AI check: ${unique.length} unique artists…`,'wa');
+  document.getElementById('pgWrap').classList.remove('hidden');
+  document.getElementById('pgF').style.width='0%';
+  let done=0;
+  for(const[key,{displayName,indices,dzArtistId}] of unique){
+    await sleep(300);
+    const res=await checkArtistAI(displayName,cfg,dzArtistId);
+    indices.forEach(i=>{
+      results[i].aiFlag=res.flag;
+      results[i].aiAvgPerYear=res.avgPerYear;
+      results[i].aiTotalAlbums=res.totalAlbums;
+      results[i].aiYearsActive=res.yearsActive;
+      results[i].aiSource=res.source;
+    });
+    const icon=res.flag==='potential_ai'?'⚠':'✓';
+    log(`${icon} ${displayName}: ${res.avgPerYear} albums/yr (${res.totalAlbums} over ${res.yearsActive}yr) [${res.source}]`,
+      res.flag==='potential_ai'?'wa':'ok');
+    done++;
+    document.getElementById('pgF').style.width=`${done/unique.length*100}%`;
+    document.getElementById('pgL').textContent=`${done} / ${unique.length} artists`;
+    renderAll();
+  }
+  const flagged=new Set(results.filter(r=>r.aiFlag==='potential_ai').map(r=>r.metaArtist||'')).size;
+  log(`✓ AI check complete — ${flagged} potential AI artists`,'ok');
+  toast(`⚠ ${flagged} potential AI artists flagged`);
+  document.getElementById('btnAI').disabled=false;
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RUN LOOPS
+// ═══════════════════════════════════════════════════════════════
+function getConfig(){
+  return{
+    mb:true,dz:true,it:true,lfm:true,dg:true,sp:true,
+    lfmKey:'3a581f4ec5b083d24f6160a4cd8d1205',
+    dgToken:'VzRJJUcVhCpJoaKuHRciUUCNOubTBGnigOtNNTyr',
+    spId:'b070b9e40ed14605aabbe36120538f67',
+    spSec:'a2cabcb42cdb418893ec32df868c2d97'
+  };
+}
+
+async function runMetadata(){
+  isRunning=true;isPaused=false;
+  document.getElementById('btnStart').disabled=true;
+  document.getElementById('btnPause').disabled=false;
+  document.getElementById('pgWrap').classList.remove('hidden');
+  const cfg=getConfig();
+  setBadge('mb',cfg.mb);setBadge('dz',cfg.dz);setBadge('it',cfg.it);
+  setBadge('lfm',cfg.lfm&&!!cfg.lfmKey);setBadge('dg',cfg.dg&&!!cfg.dgToken);
+  setBadge('sp',cfg.sp&&!!cfg.spId);
+
+  for(let i=curIdx;i<allRows.length;i++){
+    if(isPaused){
+      curIdx=i;isRunning=false;
+      document.getElementById('btnStart').textContent='▶ Resume';
+      document.getElementById('btnStart').disabled=false;
+      document.getElementById('btnPause').disabled=true;
+      log('⏸ Paused','wa');updateStats();renderAll();return;
+    }
+    if(results[i].status!=='pending')continue;
+    await processTrack(i);updateStats();renderAll();
+  }
+
+  isRunning=false;curIdx=0;
+  document.getElementById('btnPause').disabled=true;
+  document.getElementById('btnStart').disabled=true;
+  log('✓ Metadata pass complete','ok');
+  toast('✓ Metadata pass complete!');
+  updateStats();renderAll();
+
+  // Show decision panel
+  const matched=results.filter(r=>r.status==='matched'||r.status==='reviewed').length;
+  const review=results.filter(r=>r.status==='review').length;
+  const notfound=results.filter(r=>r.status==='notfound').length;
+  const dp=document.getElementById('decisionPanel');
+  document.getElementById('decisionMsg').textContent=
+    `${matched} tracks matched · ${review} need review · ${notfound} not found. `+
+    (review>0?`Complete the review tab before continuing. `:'')+'What would you like to do next?';
+  dp.style.display='block';
+}
+
+async function runLineups(){
+  // Hide decision panel
+  document.getElementById('decisionPanel').style.display='none';
+  lineupRows=[];
+  // Clear caches for fresh run
+  Object.keys(_mbRecordingCache).forEach(k=>delete _mbRecordingCache[k]);
+  Object.keys(_mbReleaseCache).forEach(k=>delete _mbReleaseCache[k]);
+  Object.keys(_dgReleaseCache).forEach(k=>delete _dgReleaseCache[k]);
+  lineupRunning=true;lineupPaused=false;
+  document.getElementById('lStatsEl').classList.remove('hidden');
+  document.getElementById('tabLineup').classList.remove('hidden');
+  document.getElementById('btnExportLineup').disabled=true;
+
+  const eligible=results.filter(r=>r.status==='matched'||r.status==='reviewed'||r.status==='notfound');
+  log(`♪ Starting lineup pass for ${eligible.length} tracks…`,'sp');
+  document.getElementById('pgF').style.width='0%';
+  document.getElementById('pgWrap').classList.remove('hidden');
+
+  let done=0;
+  for(let i=0;i<allRows.length;i++){
+    const r=results[i];
+    if(r.status==='pending'||r.status==='processing'||r.status==='review')continue;
+    await processLineup(i);
+    done++;
+    const pct=eligible.length>0?done/eligible.length*100:0;
+    document.getElementById('pgF').style.width=pct+'%';
+    document.getElementById('pgL').textContent=`${done} / ${eligible.length}`;
+    document.getElementById('hStat').textContent=`Lineups ${done}/${eligible.length}`;
+    updateLineupStats();
+    renderLineupTable();
+  }
+
+  lineupRunning=false;
+  document.getElementById('btnExportLineup').disabled=false;
+  log(`✓ Lineup pass complete — ${lineupRows.length} performer rows`,'ok');
+  toast('✓ Lineup search complete!');
+  updateLineupStats();renderLineupTable();
+  switchTab('lineup');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════
+function updateStats(){
+  const tot=results.length,done=results.filter(r=>r.status!=='pending').length;
+  const match=results.filter(r=>r.status==='matched').length;
+  const rev=results.filter(r=>r.status==='review').length;
+  const nf=results.filter(r=>r.status==='notfound').length;
+  const revd=results.filter(r=>r.status==='reviewed').length;
+  const ms=results.filter(r=>r.multiSource).length;
+  document.getElementById('sTo').textContent=tot;
+  document.getElementById('sDo').textContent=done;
+  document.getElementById('sMa').textContent=match+revd;
+  document.getElementById('sRe').textContent=rev;
+  document.getElementById('sNF').textContent=nf;
+  document.getElementById('sRd').textContent=revd;
+  document.getElementById('sMS').textContent=ms;
+  document.getElementById('tc0').textContent=tot;
+  document.getElementById('tc1').textContent=match+revd;
+  document.getElementById('tc2').textContent=rev;
+  document.getElementById('tc3').textContent=nf;
+  const pct=tot>0?done/tot*100:0;
+  document.getElementById('pgF').style.width=pct+'%';
+  document.getElementById('pgL').textContent=`${done} / ${tot}`;
+  document.getElementById('hStat').textContent=isRunning?`${done}/${tot}`:'Ready';
+  const allDone=done===tot&&tot>0&&!isRunning;
+  if(allDone){
+    document.getElementById('btnExport').classList.remove('hidden');
+    document.getElementById('btnExport').disabled=false;
+    document.getElementById('btnAI').classList.remove('hidden');
+    document.getElementById('btnAI').disabled=false;
+  }
+}
+
+function updateLineupStats(){
+  const withCredits=results.filter(r=>r.lineupStatus==='found').length;
+  const noCredits=results.filter(r=>r.lineupStatus==='notfound').length;
+  const relLevel=results.filter(r=>r.creditLevel==='release').length;
+  const totalDone=withCredits+noCredits;
+  document.getElementById('lTo').textContent=totalDone;
+  document.getElementById('lFo').textContent=withCredits;
+  document.getElementById('lPe').textContent=lineupRows.filter(r=>r.PERFORMER_NAME).length;
+  document.getElementById('lRl').textContent=relLevel;
+  document.getElementById('tc4').textContent=lineupRows.length;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderAll(){
+  const tbA=document.getElementById('tbAll'),tbM=document.getElementById('tbMatch'),tbNF=document.getElementById('tbNF');
+  tbA.innerHTML='';tbM.innerHTML='';tbNF.innerHTML='';
+  results.forEach((r,i)=>{
+    const row=allRows[i],art=esc(row.ARTIST||''),tit=esc(row.TITLE||'');
+    let sh='',tc='';
+    if(r.status==='pending'||r.status==='processing'){tc=r.status;sh=`<span class="bp bp-sk">${r.status}</span>`;}
+    else if(r.status==='matched')sh=`<span class="bp bp-ok">Matched</span>`;
+    else if(r.status==='review')sh=`<span class="bp bp-rv">Review</span>`;
+    else if(r.status==='reviewed')sh=`<span class="bp bp-ok">Reviewed</span>`;
+    else sh=`<span class="bp bp-nf">Not Found</span>`;
+    const srcDisp=fmtSource(r.source);
+    // Use metadata-sourced artist/title when available, fall back to CSV
+    const dispArt=esc(r.metaArtist||row.ARTIST||'');
+    const dispTit=esc(r.metaTitle||row.TITLE||'');
+    const tr=document.createElement('tr');if(tc)tr.className=tc;
+    tr.innerHTML=`<td>${i+1}</td><td class="ta" title="${dispArt}">${dispArt}</td><td title="${dispTit}">${dispTit}</td>
+      <td class="ti">${r.isrc||''}</td>
+      <td title="${srcDisp}">${srcBadge(r.source)}<span style="font-size:0.58rem;color:var(--mut);margin-left:3px">${esc(srcDisp)}</span></td>
+      <td title="${esc(r.relTitle||'')}">${esc(r.relTitle||'')}</td>
+      <td title="${esc(r.label||'')}">${esc(r.label||'')}</td>
+      <td>${esc(r.country||'')}</td>
+      <td>${r.yr||''}</td>
+      <td title="${esc(r.genre||'')}">${esc(r.genre||'')}</td>
+      <td>${fmtD(r.dur)}</td><td>${sh}</td><td>${aiFlagHtml(r)}</td>`;
+    tbA.appendChild(tr);
+    if(r.status==='matched'||r.status==='reviewed'){
+      const tm=document.createElement('tr');
+      tm.innerHTML=`<td>${i+1}</td><td class="ta">${dispArt}</td><td>${dispTit}</td>
+        <td class="ti">${r.isrc||''}</td>
+        <td>${srcBadge(r.source)}<span style="font-size:0.58rem;color:var(--mut);margin-left:3px">${esc(srcDisp)}</span></td>
+        <td>${esc(r.relTitle||'')}</td><td>${esc(r.label||'')}</td>
+        <td>${esc(r.country||'')}</td><td>${r.yr||''}</td>
+        <td>${esc(r.genre||'')}</td><td>${fmtD(r.dur)}</td><td>${aiFlagHtml(r)}</td>`;
+      tbM.appendChild(tm);
+    }
+    if(r.status==='notfound'){
+      const tn=document.createElement('tr');
+      tn.innerHTML=`<td>${i+1}</td><td class="ta">${art}</td><td>${tit}</td>
+        <td style="color:var(--mut);font-size:0.65rem">${esc(r.tried||'')}</td>
+        <td style="color:var(--err);font-size:0.65rem">${esc(r.note||'')}</td>
+        <td><button class="btn btn-s" style="padding:3px 8px;font-size:0.6rem" onclick="openMSM(${i})">⌕ Search</button></td>`;
+      tbNF.appendChild(tn);
+    }
+  });
+  renderRevCards();
+}
+
+function renderLineupTable(){
+  const tb=document.getElementById('tbLineup');tb.innerHTML='';
+  lineupRows.forEach((lr,i)=>{
+    const tr=document.createElement('tr');
+    const feat=lr.FEATURED==='Yes';
+    tr.innerHTML=`<td>${i+1}</td>
+      <td class="ta" title="${esc(lr.ARTIST||lr[headers[0]]||'')}">${esc(lr.ARTIST||lr[headers[0]]||'')}</td>
+      <td title="${esc(lr.TITLE||lr[headers[1]]||'')}">${esc(lr.TITLE||lr[headers[1]]||'')}</td>
+      <td class="ti">${esc(lr.ISRC||'')}</td>
+      <td>${lr.YEAR_OF_FIRST_RELEASE||''}</td>
+      <td style="color:var(--txt);font-weight:500">${esc(lr.PERFORMER_NAME||'')}</td>
+      <td style="color:var(--mut)">${esc(lr.PERFORMER_ROLE||'')}</td>
+      <td>${feat?'<span class="bp bp-ft">Featured</span>':lr.FEATURED?'<span class="bp bp-sk">Session</span>':''}</td>
+      <td><span class="bp ${lr.CREDIT_LEVEL==='recording'?'bp-ok':'bp-rv'}">${esc(lr.CREDIT_LEVEL||'')}</span></td>
+      <td>${lr.CREDITS_URL?`<a href="${esc(lr.CREDITS_URL)}" target="_blank" style="color:var(--acc2);font-size:0.65rem">View ↗</a>`:''}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderRevCards(){
+  const con=document.getElementById('revCards');con.innerHTML='';
+  const items=results.map((r,i)=>({r,i})).filter(({r})=>r.status==='review');
+  if(!items.length){con.innerHTML=`<div class="empty"><div class="ei">✓</div><p>No items need manual review</p></div>`;return;}
+  items.forEach(({r,i})=>{
+    const row=allRows[i];
+    const card=document.createElement('div');card.className='rc';card.dataset.idx=i;
+
+    // Find earliest valid year across all candidates for highlight
+    // For each candidate, use explicit year or derive from ISRC
+    const candsWithYr=(r.candidates||[]).map(c=>({
+      ...c,
+      displayYr: c.yr || isrcYear(c.isrc) || null,
+      yrSource: c.yr ? 'api' : (isrcYear(c.isrc) ? 'isrc' : null)
+    }));
+    const validYears=candsWithYr.map(c=>c.displayYr).filter(Boolean);
+    const earliestYr=validYears.length?Math.min(...validYears):null;
+
+    const ch=candsWithYr.map((c,ci)=>{
+      const isEarliest=earliestYr&&c.displayYr===earliestYr;
+      const yrLabel=c.displayYr
+        ?(c.yrSource==='isrc'?`${c.displayYr}<sup style="font-size:0.5rem;opacity:.7">ISRC</sup>`:`${c.displayYr}`)
+        :'?';
+      const yrHtml=c.displayYr
+        ?`<span style="${isEarliest?'color:#000;background:var(--warn);padding:1px 5px;border-radius:3px;font-weight:700':'color:var(--mut)'}">${yrLabel}</span>`
+        :`<span style="color:var(--mut)">?</span>`;
+      const candArtist=c.artistName||'';
+      return`
+      <label class="cnd" onclick="this.querySelector('input').checked=true">
+        <input type="radio" name="c${i}" value="${ci}" ${ci===0?'checked':''}>
+        <span class="ci-i">${c.isrc}</span>
+        <span class="ci-t" style="display:flex;flex-direction:column;gap:2px">
+          <span style="color:var(--txt);font-weight:500" title="${esc(c.recTitle)}">${esc(c.recTitle)}${c.disambig?` <em style="color:var(--mut);font-weight:400">(${esc(c.disambig)})</em>`:''}</span>
+          ${candArtist?`<span style="color:var(--mut);font-size:0.65rem">${esc(candArtist)}</span>`:''}
+        </span>
+        <span class="ci-m" style="gap:8px;min-width:90px;justify-content:flex-end">${yrHtml} ${srcBadge(c.source)}${c.multi?' ★':''}</span>
+      </label>`;
+    }).join('')+`
+      <label class="cnd-n" onclick="this.querySelector('input').checked=true">
+        <input type="radio" name="c${i}" value="none">
+        <span style="color:var(--err);font-family:var(--mono);font-size:0.72rem">✕ None — mark as not found</span>
+      </label>`;
+    card.innerHTML=`<div class="rca">${esc(row.ARTIST||'')}</div><div class="rct">${esc(row.TITLE||'')}</div>
+      <div class="rcr">${esc(r.reason||'Needs review')}</div>
+      <div style="font-family:var(--mono);font-size:0.58rem;color:var(--mut);margin-bottom:8px;display:flex;gap:12px">
+        <span>ISRC</span>
+        <span style="flex:1">TITLE FROM SOURCE${earliestYr?` · <span style="color:#000;background:var(--warn);padding:1px 5px;border-radius:3px;font-size:0.58rem;font-weight:700">★ earliest year highlighted</span>`:''}</span>
+        <span>YEAR &nbsp; SRC</span>
+      </div>
+      <div class="clist">${ch}</div>
+      <div class="ra">
+        <button class="btn btn-p" onclick="confirmRev(${i})">Confirm</button>
+        <button class="btn btn-s" onclick="skipRev(${i})">Skip</button>
+      </div>`;
+    con.appendChild(card);
+  });
+}
+
+window.confirmRev=function(idx){
+  const rads=document.querySelectorAll(`input[name="c${idx}"]`);let sel=null;
+  rads.forEach(r=>{if(r.checked)sel=r.value;});
+  if(sel==='none'){results[idx].status='notfound';results[idx].note='Manually marked not found';}
+  else if(sel!==null){
+    const c=results[idx].candidates[parseInt(sel)];
+    Object.assign(results[idx],{status:'reviewed',isrc:c.isrc,recTitle:c.recTitle,
+      metaTitle:c.recTitle,yr:c.yr,
+      label:c.label,relTitle:c.relTitle,dur:c.dur,source:c.source,mbid:c.mbid||''});
+  }
+  updateStats();renderAll();
+};
+window.skipRev=function(idx){
+  const card=document.querySelector(`.rc[data-idx="${idx}"]`);if(card)card.style.opacity='.35';
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// MANUAL SEARCH
+// ═══════════════════════════════════════════════════════════════
+let _msmIdx=null;
+
+window.openMSM=function(idx){
+  _msmIdx=idx;
+  const row=allRows[idx];
+  document.getElementById('msmArtist').value=row.ARTIST||'';
+  document.getElementById('msmTitle').value=row.TITLE||'';
+  document.getElementById('msmResults').innerHTML='';
+  document.getElementById('msmStatus').textContent='';
+  document.getElementById('msmOverlay').classList.remove('hidden');
+  document.getElementById('msmArtist').focus();
+};
+
+window.closeMSM=function(){
+  document.getElementById('msmOverlay').classList.add('hidden');
+  _msmIdx=null;
+};
+
+// Relaxed candidate builder — no origSc filter, include all versions
+function buildCandsRelaxed(mbR,dzR,spR){
+  const all=[];
+  for(const rec of mbR) for(const isrc of rec.isrcs) all.push({...rec,isrc});
+  for(const rec of dzR) for(const isrc of rec.isrcs) all.push({...rec,isrc});
+  for(const rec of (spR||[])) for(const isrc of rec.isrcs) all.push({...rec,isrc});
+  if(!all.length) return [];
+  // Deduplicate by ISRC, merge sources, boost multi-source
+  const cnt={};all.forEach(c=>cnt[c.isrc]=(cnt[c.isrc]||0)+1);
+  all.forEach(c=>{c.multi=cnt[c.isrc]>1;if(c.multi)c.score+=20;});
+  const byI={};
+  all.forEach(c=>{
+    if(!byI[c.isrc])byI[c.isrc]=c;
+    else{
+      const ex=byI[c.isrc];
+      if(c.score>ex.score)byI[c.isrc]={...c,source:ex.source+'+'+c.source};
+      else if(c.source!==ex.source)byI[c.isrc].source=ex.source+'+'+c.source;
+    }
+  });
+  return Object.values(byI).sort((a,b)=>b.score-a.score);
+}
+
+window.runManualSearch=async function(){
+  const artist=document.getElementById('msmArtist').value.trim();
+  const title=document.getElementById('msmTitle').value.trim();
+  if(!artist||!title){document.getElementById('msmStatus').textContent='Enter artist and title';return;}
+
+  const btn=document.getElementById('msmSearchBtn');
+  btn.disabled=true;btn.textContent='Searching…';
+  document.getElementById('msmStatus').textContent='Querying MusicBrainz, Deezer, Spotify…';
+  document.getElementById('msmResults').innerHTML='';
+
+  const cfg=getConfig();
+  let mbR=[],dzR=[],spR=[];
+  await Promise.allSettled([
+    mbSearch(artist,title).then(r=>mbR=r),
+    dzSearch(artist,title).then(r=>dzR=r),
+    cfg.sp?spSearch(artist,title,cfg.spId,cfg.spSec).then(r=>spR=r):Promise.resolve()
+  ]);
+
+  const cands=buildCandsRelaxed(mbR,dzR,spR);
+  _msmCands=cands;
+  btn.disabled=false;btn.textContent='⌕ Search';
+
+  const res=document.getElementById('msmResults');
+  if(!cands.length){
+    document.getElementById('msmStatus').textContent='No results found — try different spelling';
+    res.innerHTML='';return;
+  }
+  document.getElementById('msmStatus').textContent=`${cands.length} candidate${cands.length>1?'s':''} found`;
+
+  const validYears=cands.map(c=>c.yr||isrcYear(c.isrc)||null).filter(Boolean);
+  const earliestYr=validYears.length?Math.min(...validYears):null;
+
+  res.innerHTML='<div class="clist" id="msmClist">'+cands.map((c,ci)=>{
+    const displayYr=c.yr||isrcYear(c.isrc)||null;
+    const isEarliest=earliestYr&&displayYr===earliestYr;
+    const yrSrc=c.yr?'api':'isrc';
+    const yrLabel=displayYr?(yrSrc==='isrc'?`${displayYr}<sup style="font-size:0.5rem;opacity:.7">ISRC</sup>`:`${displayYr}`):'?';
+    const yrHtml=displayYr
+      ?`<span style="${isEarliest?'color:#000;background:var(--warn);padding:1px 5px;border-radius:3px;font-weight:700':'color:var(--mut)'}">${yrLabel}</span>`
+      :`<span style="color:var(--mut)">?</span>`;
+    const isNonOrig=c.osc===999||isNonOrigTitle(c.recTitle);
+    return`<label class="cnd" onclick="this.querySelector('input').checked=true" style="${isNonOrig?'opacity:.6':''}">
+      <input type="radio" name="msmc" value="${ci}" ${ci===0?'checked':''}>
+      <span class="ci-i">${c.isrc}</span>
+      <span class="ci-t" style="display:flex;flex-direction:column;gap:2px">
+        <span style="color:var(--txt);font-weight:500" title="${esc(c.recTitle)}">${esc(c.recTitle)}${c.disambig?` <em style="color:var(--mut);font-weight:400">(${esc(c.disambig)})</em>`:''}${isNonOrig?' <span style="font-size:0.58rem;color:var(--warn)">[non-orig]</span>':''}</span>
+        ${c.artistName?`<span style="color:var(--mut);font-size:0.65rem">${esc(c.artistName)}</span>`:''}
+      </span>
+      <span class="ci-m" style="gap:8px;min-width:90px;justify-content:flex-end">${yrHtml} ${srcBadge(c.source)}${c.multi?' ★':''}</span>
+    </label>`;
+  }).join('')+'</div>'+
+  `<div class="ra" style="margin-top:10px">
+    <button class="btn btn-p" onclick="applyMSM()">✓ Apply Selected</button>
+    <button class="btn btn-s" onclick="closeMSM()">Cancel</button>
+  </div>`;
+};
+
+// Reuse the main isNonOrig for manual search flagging
+function isNonOrigTitle(t){ return isNonOrig(t); }
+
+window.applyMSM=function(){
+  if(_msmIdx===null)return;
+  const rads=document.querySelectorAll('input[name="msmc"]');
+  let sel=null;
+  rads.forEach(r=>{if(r.checked)sel=parseInt(r.value);});
+  if(sel===null){document.getElementById('msmStatus').textContent='Select a candidate first';return;}
+
+  // Re-run search to get the candidates array (stored in DOM, retrieve from last search)
+  // We grab the chosen candidate from the rendered list by re-running with stored values
+  const artist=document.getElementById('msmArtist').value.trim();
+  const title=document.getElementById('msmTitle').value.trim();
+  const cfg=getConfig();
+
+  // Get candidate from global store
+  const chosen=_msmCands[sel];
+  if(!chosen)return;
+
+  const idx=_msmIdx;
+  const row=allRows[idx];
+  Object.assign(results[idx],{
+    status:'reviewed',
+    isrc:chosen.isrc,
+    recTitle:chosen.recTitle,
+    metaArtist:chosen.artistName||row.ARTIST,
+    metaTitle:chosen.recTitle,
+    yr:chosen.yr||isrcYear(chosen.isrc)||null,
+    label:chosen.label||'',
+    relTitle:chosen.relTitle||'',
+    dur:chosen.dur||null,
+    source:chosen.source,
+    mbid:chosen.mbid||'',
+    country:chosen.country||isrcCountry(chosen.isrc)||'',
+    note:''
+  });
+  log(`✓ Manual match [${idx+1}] ${row.ARTIST} – ${row.TITLE} → ${chosen.isrc}`,'ok');
+  toast(`✓ Applied: ${chosen.isrc}`);
+  closeMSM();
+  updateStats();renderAll();
+};
+
+let _msmCands=[];
+// ═══════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════
+function exportMetadata(){
+  const nc=['ISRC','META_ARTIST','META_TITLE','RELEASE_TITLE','LABEL',
+    'COUNTRY_OF_PRODUCTION','YEAR_OF_FIRST_RELEASE','DURATION_SEC','GENRE','UPC',
+    'SOURCE','LOOKUP_STATUS','AI_FLAG','AI_AVG_ALBUMS_PER_YEAR','AI_CHECK_SOURCE'];
+  const lines=[headers.concat(nc).join(';')];
+  allRows.forEach((row,i)=>{
+    const r=results[i];
+    const isrc=r.isrc||'';
+    const yr=r.yr||isrcYear(isrc)||'';
+    const rawCountry=r.country||'';
+    const country=sanitiseCountry(rawCountry)||isrcCountry(isrc)||'';
+    const base=headers.map(h=>`"${csv(row[h]||'')}"` ).join(';');
+    lines.push([base,
+      `"${csv(isrc)}"`,
+      `"${csv(r.metaArtist||row.ARTIST||'')}"`,
+      `"${csv(r.metaTitle||row.TITLE||'')}"`,
+      `"${csv(r.relTitle||'')}"`,`"${csv(r.label||'')}"`,
+      `"${csv(country)}"`,yr,r.dur||'',
+      `"${csv(r.genre||'')}"`,`"${csv(r.upc||'')}"`,
+      `"${csv(fmtSource(r.source))}"`,r.status||'pending',
+      r.aiFlag||'',r.aiAvgPerYear||'',`"${csv(r.aiSource||'')}"`
+    ].join(';'));
+  });
+  dlCSV(lines,`isrc_metadata_${today()}.csv`);
+  toast('✓ Metadata CSV exported');
+}
+
+function exportLineup(){
+  if(!lineupRows.length){toast('No lineup data yet',true);return;}
+  const sample=lineupRows[0];
+  const cols=Object.keys(sample);
+  const lines=[cols.join(';')];
+  lineupRows.forEach(lr=>{
+    lines.push(cols.map(c=>`"${csv(lr[c]||'')}"` ).join(';'));
+  });
+  dlCSV(lines,`isrc_lineups_${today()}.csv`);
+  toast('✓ Lineup CSV exported');
+}
+
+function dlCSV(lines,name){
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+  URL.revokeObjectURL(url);
+}
+function today(){return new Date().toISOString().substring(0,10);}
+
+// ═══════════════════════════════════════════════════════════════
+// CSV PARSE
+// ═══════════════════════════════════════════════════════════════
+function parseCSV(txt){
+  txt=txt.replace(/^\uFEFF/,'');
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return{headers:[],rows:[]};
+  const delim=(lines[0].match(/;/g)||[]).length>(lines[0].match(/,/g)||[]).length?';':',';
+  headers=lines[0].split(delim).map(h=>h.trim());
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=lines[i].split(delim);const o={};
+    headers.forEach((h,j)=>{o[h]=(vals[j]||'').trim();});rows.push(o);
+  }
+  return{headers,rows};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+function switchTab(which){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act'));
+  document.querySelector(`.tab[data-tab="${which}"]`)?.classList.add('act');
+  ['all','matched','review','notfound','lineup'].forEach(v=>{
+    const el=document.getElementById('view'+v);if(el)el.classList.toggle('hidden',v!==which);
+  });
+}
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>switchTab(tab.dataset.tab));
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FILE LOAD
+// ═══════════════════════════════════════════════════════════════
+function loadFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const{rows}=parseCSV(e.target.result);
+    if(!rows.length){toast('CSV empty/unreadable',true);return;}
+    if(!headers.includes('ARTIST')||!headers.includes('TITLE')){toast('CSV needs ARTIST & TITLE columns',true);return;}
+    allRows=rows;results=rows.map(()=>({status:'pending'}));curIdx=0;lineupRows=[];aiCache={};
+    document.getElementById('dropZone').classList.add('hidden');
+    document.getElementById('statsEl').classList.remove('hidden');
+    document.getElementById('ctrlEl').classList.remove('hidden');
+    document.getElementById('tabsEl').classList.remove('hidden');
+    document.getElementById('viewall').classList.remove('hidden');
+    updateStats();renderAll();
+    log(`Loaded ${rows.length} tracks from "${file.name}"`,'ok');
+    toast(`✓ Loaded ${rows.length} tracks`);
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+document.getElementById('msmArtist').addEventListener('keydown',e=>{if(e.key==='Enter')runManualSearch();});
+document.getElementById('msmTitle').addEventListener('keydown',e=>{if(e.key==='Enter')runManualSearch();});
+document.getElementById('fileInput').addEventListener('change',e=>loadFile(e.target.files[0]));
+const dzEl=document.getElementById('dropZone');
+dzEl.addEventListener('dragover',e=>{e.preventDefault();dzEl.classList.add('over');});
+dzEl.addEventListener('dragleave',()=>dzEl.classList.remove('over'));
+dzEl.addEventListener('drop',e=>{e.preventDefault();dzEl.classList.remove('over');loadFile(e.dataTransfer.files[0]);});
+
+document.getElementById('btnStart').addEventListener('click',()=>{if(!isRunning)runMetadata();});
+document.getElementById('btnPause').addEventListener('click',()=>{isPaused=true;});
+document.getElementById('btnExport').addEventListener('click',exportMetadata);
+document.getElementById('btnExport2').addEventListener('click',exportMetadata);
+document.getElementById('btnAI').addEventListener('click',runAICheck);
+document.getElementById('btnAI2').addEventListener('click',runAICheck);
+document.getElementById('btnLineup').addEventListener('click',runLineups);
+document.getElementById('btnLineup2').addEventListener('click',runLineups);
+document.getElementById('btnExportLineup').addEventListener('click',exportLineup);
+
+
+</script>
+</body>
+</html>
